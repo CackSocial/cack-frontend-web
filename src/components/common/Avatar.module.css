@@ -1,0 +1,42 @@
+.avatar {
+  border-radius: var(--radius-full);
+  object-fit: cover;
+  flex-shrink: 0;
+  background-color: var(--color-bg-tertiary);
+  transition: background-color var(--transition-theme);
+}
+
+.sm {
+  width: 32px;
+  height: 32px;
+}
+
+.md {
+  width: 40px;
+  height: 40px;
+}
+
+.lg {
+  width: 56px;
+  height: 56px;
+}
+
+.xl {
+  width: 80px;
+  height: 80px;
+}
+
+.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: var(--weight-bold);
+  color: var(--color-text-inverse);
+  background-color: var(--color-accent);
+}
+
+.fallback.sm { font-size: var(--text-xs); }
+.fallback.md { font-size: var(--text-sm); }
+.fallback.lg { font-size: var(--text-lg); }
+.fallback.xl { font-size: var(--text-2xl); }
