@@ -143,3 +143,20 @@
 .tag:hover {
   opacity: 0.7;
 }
+
+.statBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+}
+
+.statIcon {
+  vertical-align: middle;
+  margin-right: var(--space-1);
+}
+
+.noComments {
+  color: var(--color-text-tertiary);
+  font-size: var(--text-sm);
+}

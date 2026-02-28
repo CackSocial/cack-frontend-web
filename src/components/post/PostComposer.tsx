@@ -32,6 +32,7 @@ export function PostComposer() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setImagePreview(reader.result as string);
+    reader.onerror = () => setImagePreview(null);
     reader.readAsDataURL(file);
   };
 
@@ -93,7 +94,7 @@ export function PostComposer() {
               </IconButton>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center' }}>
+            <div className={styles.submitRow}>
               {content.length > 0 && (
                 <span
                   className={`${styles.charCount} ${isOverLimit ? styles.over : isNearLimit ? styles.near : ''}`}

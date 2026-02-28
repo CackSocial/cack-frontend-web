@@ -6,6 +6,7 @@ import { CommentThread } from '../../components/post/CommentThread';
 import { usePostsStore } from '../../stores/postsStore';
 import { useAuthStore } from '../../stores/authStore';
 import { formatFullDate, formatCount } from '../../utils/format';
+import { renderTaggedContent } from '../../utils/renderTaggedContent';
 import { mockComments } from '../../data/mockData';
 import styles from './PostDetailPage.module.css';
 
@@ -28,21 +29,6 @@ export function PostDetailPage() {
       </div>
     );
   }
-
-  const renderContent = () => {
-    const parts = post.content.split(/(#\w+)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('#')) {
-        const tag = part.slice(1).toLowerCase();
-        return (
-          <Link key={i} to={`/explore?tag=${tag}`} className={styles.tag}>
-            {part}
-          </Link>
-        );
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
 
   return (
     <div className={styles.page}>
@@ -72,7 +58,9 @@ export function PostDetailPage() {
           </div>
         </div>
 
-        <div className={styles.postContent}>{renderContent()}</div>
+        <div className={styles.postContent}>
+          {renderTaggedContent(post.content, styles.tag)}
+        </div>
 
         {post.imageUrl && (
           <img
@@ -88,15 +76,14 @@ export function PostDetailPage() {
 
         <div className={styles.postActions}>
           <button
-            className={styles.stat}
+            className={`${styles.stat} ${styles.statBtn}`}
             onClick={() => toggleLike(post.id)}
-            style={{ cursor: 'pointer', background: 'none', border: 'none' }}
           >
             <Heart
               size={18}
               fill={post.isLiked ? 'var(--color-like)' : 'none'}
               color={post.isLiked ? 'var(--color-like)' : 'currentColor'}
-              style={{ verticalAlign: 'middle', marginRight: 4 }}
+              className={styles.statIcon}
             />
             <span className={styles.statCount}>
               {formatCount(post.likesCount)}
@@ -106,7 +93,7 @@ export function PostDetailPage() {
           <span className={styles.stat}>
             <MessageCircle
               size={18}
-              style={{ verticalAlign: 'middle', marginRight: 4 }}
+              className={styles.statIcon}
             />
             <span className={styles.statCount}>
               {formatCount(post.commentsCount)}
@@ -114,12 +101,11 @@ export function PostDetailPage() {
             comments
           </span>
           <button
-            className={styles.stat}
-            style={{ cursor: 'pointer', background: 'none', border: 'none' }}
+            className={`${styles.stat} ${styles.statBtn}`}
           >
             <Share2
               size={18}
-              style={{ verticalAlign: 'middle', marginRight: 4 }}
+              className={styles.statIcon}
             />
             Share
           </button>
@@ -153,7 +139,7 @@ export function PostDetailPage() {
         {comments.length > 0 ? (
           <CommentThread comments={comments} />
         ) : (
-          <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-sm)' }}>
+          <p className={styles.noComments}>
             No comments yet. Be the first to share your thoughts.
           </p>
         )}

@@ -27,7 +27,10 @@ export function ConversationPage() {
   }, [conversationId, setActiveConversation]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    messagesEndRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    });
   }, [conversationMessages.length]);
 
   const handleSend = (e: FormEvent) => {

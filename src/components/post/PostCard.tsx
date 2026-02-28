@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Heart, MessageCircle, Share2 } from 'lucide-react';
 import { Avatar } from '../common';
 import { usePostsStore } from '../../stores/postsStore';
 import { timeAgo, formatCount } from '../../utils/format';
+import { renderTaggedContent } from '../../utils/renderTaggedContent';
 import type { Post } from '../../types';
 import styles from './PostCard.module.css';
 
@@ -15,35 +16,21 @@ interface PostCardProps {
 export function PostCard({ post, index = 0 }: PostCardProps) {
   const toggleLike = usePostsStore((s) => s.toggleLike);
   const [animating, setAnimating] = useState(false);
+  const animationTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    return () => clearTimeout(animationTimer.current);
+  }, []);
 
   const handleLike = useCallback(() => {
     toggleLike(post.id);
     if (!post.isLiked) {
       setAnimating(true);
-      setTimeout(() => setAnimating(false), 600);
+      clearTimeout(animationTimer.current);
+      animationTimer.current = setTimeout(() => setAnimating(false), 600);
     }
   }, [toggleLike, post.id, post.isLiked]);
-
-  const renderContent = () => {
-    const parts = post.content.split(/(#\w+)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('#')) {
-        const tag = part.slice(1).toLowerCase();
-        return (
-          <Link
-            key={i}
-            to={`/explore?tag=${tag}`}
-            className={styles.tag}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {part}
-          </Link>
-        );
-      }
-      return <span key={i}>{part}</span>;
-    });
-  };
 
   return (
     <article
@@ -75,7 +62,9 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
           </div>
 
           <Link to={`/post/${post.id}`} className={styles.contentLink}>
-            <div className={styles.content}>{renderContent()}</div>
+            <div className={styles.content}>
+              {renderTaggedContent(post.content, styles.tag, (e) => e.stopPropagation())}
+            </div>
             {post.imageUrl && (
               <img
                 src={post.imageUrl}
