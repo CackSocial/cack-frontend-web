@@ -239,7 +239,7 @@ export const mockComments: Record<string, Comment[]> = {
               author: mockUsers[4],
               postId: 'p2',
               parentId: 'c3-r1',
-              content: `That\'s the dream. Less code = less bugs. Math checks out 😄`,
+              content: `That's the dream. Less code = less bugs. Math checks out 😄`,
               likesCount: 15,
               isLiked: false,
               replies: [],

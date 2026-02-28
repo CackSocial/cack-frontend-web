@@ -84,7 +84,7 @@
 }
 
 .bubbleTime {
-  font-size: 10px;
+  font-size: var(--text-xs);
   opacity: 0.6;
   margin-top: var(--space-1);
 }

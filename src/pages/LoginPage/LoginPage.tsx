@@ -16,7 +16,9 @@ export function LoginPage() {
     clearError();
     if (!username.trim() || !password.trim()) return;
     await login(username.trim(), password);
-    navigate('/');
+    if (!useAuthStore.getState().error) {
+      navigate('/');
+    }
   };
 
   return (

@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useState, useRef, useEffect } from 'react';
 import { Avatar, Button, Input } from '../../components/common';
 import { ThemeToggle } from '../../components/theme/ThemeToggle';
 import { useAuthStore } from '../../stores/authStore';
@@ -11,12 +11,18 @@ export function SettingsPage() {
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [bio, setBio] = useState(user?.bio ?? '');
   const [saved, setSaved] = useState(false);
+  const savedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    return () => clearTimeout(savedTimer.current);
+  }, []);
 
   const handleSave = (e: FormEvent) => {
     e.preventDefault();
     updateProfile({ displayName: displayName.trim(), bio: bio.trim() });
     setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    clearTimeout(savedTimer.current);
+    savedTimer.current = setTimeout(() => setSaved(false), 2000);
   };
 
   return (
@@ -47,7 +53,7 @@ export function SettingsPage() {
             onChange={(e) => setBio(e.target.value)}
             placeholder="Tell people about yourself"
           />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <div className={styles.saveRow}>
             <Button type="submit" size="sm">
               Save Changes
             </Button>
