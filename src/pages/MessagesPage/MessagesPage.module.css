@@ -1,5 +1,6 @@
 .page {
   padding-bottom: var(--space-8);
+  overflow-x: hidden;
 }
 
 .pageTitle {
