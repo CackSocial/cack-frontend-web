@@ -69,6 +69,9 @@
 }
 
 .postMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: var(--text-sm);
   color: var(--color-text-tertiary);
   padding-bottom: var(--space-4);
@@ -112,8 +115,13 @@
   margin-bottom: var(--space-4);
 }
 
-.commentInputField {
+.commentInputWrap {
+  position: relative;
   flex: 1;
+}
+
+.commentInputField {
+  width: 100%;
   padding: var(--space-3) var(--space-4);
   font-size: var(--text-sm);
   background-color: var(--color-bg-secondary);
@@ -144,6 +152,16 @@
   opacity: 0.7;
 }
 
+.mention {
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+.mention:hover {
+  opacity: 0.7;
+}
+
 .statBtn {
   display: inline-flex;
   align-items: center;
@@ -159,4 +177,26 @@
 .noComments {
   color: var(--color-text-tertiary);
   font-size: var(--text-sm);
+}
+
+.deleteBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-full);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.deleteBtn:hover {
+  color: var(--color-danger);
+  background-color: var(--color-bg-hover);
+}
+
+.statBookmarked {
+  color: var(--color-accent);
 }

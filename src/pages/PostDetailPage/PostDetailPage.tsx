@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Heart, MessageCircle, Share2 } from 'lucide-react';
-import { Avatar, Button } from '../../components/common';
+import { ArrowLeft, Heart, MessageCircle, Share2, Bookmark, Trash2 } from 'lucide-react';
+import { Avatar, Button, ConfirmDialog, ImageViewer, MentionAutocomplete } from '../../components/common';
 import { CommentThread } from '../../components/post/CommentThread';
 import { usePostsStore } from '../../stores/postsStore';
 import { useAuthStore } from '../../stores/authStore';
@@ -10,6 +10,7 @@ import * as commentsAPI from '../../api/comments';
 import { mapPost, mapComment } from '../../api/mappers';
 import { formatFullDate, formatCount } from '../../utils/format';
 import { renderTaggedContent } from '../../utils/renderTaggedContent';
+import { sharePost } from '../../utils/share';
 import type { Post, FlatComment } from '../../types';
 import styles from './PostDetailPage.module.css';
 
@@ -17,12 +18,20 @@ export function PostDetailPage() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
   const toggleLike = usePostsStore((s) => s.toggleLike);
+  const toggleBookmark = usePostsStore((s) => s.toggleBookmark);
+  const deletePost = usePostsStore((s) => s.deletePost);
   const user = useAuthStore((s) => s.user);
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<FlatComment[]>([]);
   const [commentText, setCommentText] = useState('');
   const [notFound, setNotFound] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [commentCursorPos, setCommentCursorPos] = useState(0);
+  const [commentMentionOpen, setCommentMentionOpen] = useState(true);
+  const commentInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!postId) return;
@@ -42,6 +51,29 @@ export function PostDetailPage() {
     setPost(mapPost(res.data!));
   };
 
+  const handleBookmark = async () => {
+    if (!post) return;
+    await toggleBookmark(post.id);
+    const res = await postsAPI.getPost(post.id);
+    setPost(mapPost(res.data!));
+  };
+
+  const handleShare = useCallback(async () => {
+    if (!post) return;
+    const ok = await sharePost(post.id);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [post]);
+
+  const handleDelete = async () => {
+    if (!post) return;
+    await deletePost(post.id);
+    setShowDeleteConfirm(false);
+    navigate(-1);
+  };
+
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim() || !postId) return;
@@ -56,6 +88,33 @@ export function PostDetailPage() {
       setSubmitting(false);
     }
   };
+
+  const updateCommentCursorPos = useCallback(() => {
+    if (commentInputRef.current) {
+      setCommentCursorPos(commentInputRef.current.selectionStart ?? 0);
+    }
+  }, []);
+
+  const handleCommentMentionSelect = useCallback(
+    (username: string) => {
+      const before = commentText.slice(0, commentCursorPos);
+      const atIndex = before.lastIndexOf('@');
+      if (atIndex === -1) return;
+      const after = commentText.slice(commentCursorPos);
+      const newText = before.slice(0, atIndex) + '@' + username + ' ' + after;
+      setCommentText(newText);
+      setCommentMentionOpen(false);
+      const newCursorPos = atIndex + username.length + 2;
+      requestAnimationFrame(() => {
+        if (commentInputRef.current) {
+          commentInputRef.current.focus();
+          commentInputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+          setCommentCursorPos(newCursorPos);
+        }
+      });
+    },
+    [commentText, commentCursorPos],
+  );
 
   if (notFound || (!post && !notFound)) {
     return (
@@ -99,7 +158,7 @@ export function PostDetailPage() {
         </div>
 
         <div className={styles.postContent}>
-          {renderTaggedContent(post.content, styles.tag)}
+          {renderTaggedContent(post.content, styles.tag, undefined, styles.mention)}
         </div>
 
         {post.imageUrl && (
@@ -107,11 +166,22 @@ export function PostDetailPage() {
             src={post.imageUrl}
             alt="Post attachment"
             className={styles.postImage}
+            onClick={() => setViewerOpen(true)}
+            style={{ cursor: 'zoom-in' }}
           />
         )}
 
         <div className={styles.postMeta}>
           {formatFullDate(post.createdAt)}
+          {user?.id === post.author.id && (
+            <button
+              className={styles.deleteBtn}
+              onClick={() => setShowDeleteConfirm(true)}
+              aria-label="Delete post"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
 
         <div className={styles.postActions}>
@@ -141,16 +211,46 @@ export function PostDetailPage() {
             comments
           </span>
           <button
+            className={`${styles.stat} ${styles.statBtn} ${post.isBookmarked ? styles.statBookmarked : ''}`}
+            onClick={handleBookmark}
+          >
+            <Bookmark
+              size={18}
+              fill={post.isBookmarked ? 'currentColor' : 'none'}
+              className={styles.statIcon}
+            />
+            {post.isBookmarked ? 'Saved' : 'Save'}
+          </button>
+          <button
             className={`${styles.stat} ${styles.statBtn}`}
+            onClick={handleShare}
           >
             <Share2
               size={18}
               className={styles.statIcon}
             />
-            Share
+            {copied ? 'Copied!' : 'Share'}
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete Post"
+        message="Are you sure you want to delete this post? This action cannot be undone."
+        confirmLabel="Delete"
+      />
+
+      {post.imageUrl && (
+        <ImageViewer
+          src={post.imageUrl}
+          alt="Post attachment"
+          isOpen={viewerOpen}
+          onClose={() => setViewerOpen(false)}
+        />
+      )}
 
       <div className={styles.commentsSection}>
         <h3 className={styles.commentsSectionTitle}>Comments</h3>
@@ -162,12 +262,30 @@ export function PostDetailPage() {
           {user && (
             <Avatar src={user.avatarUrl} alt={user.displayName} size="sm" />
           )}
-          <input
-            className={styles.commentInputField}
-            placeholder="Write a comment…"
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
-          />
+          <div className={styles.commentInputWrap}>
+            <input
+              ref={commentInputRef}
+              className={styles.commentInputField}
+              placeholder="Write a comment…"
+              value={commentText}
+              onChange={(e) => {
+                setCommentText(e.target.value);
+                setCommentCursorPos(e.target.selectionStart ?? 0);
+                setCommentMentionOpen(true);
+              }}
+              onSelect={updateCommentCursorPos}
+              onClick={updateCommentCursorPos}
+              onKeyUp={updateCommentCursorPos}
+            />
+            {commentMentionOpen && (
+              <MentionAutocomplete
+                inputValue={commentText}
+                cursorPosition={commentCursorPos}
+                onSelect={handleCommentMentionSelect}
+                onClose={() => setCommentMentionOpen(false)}
+              />
+            )}
+          </div>
           <Button size="sm" type="submit" disabled={!commentText.trim() || submitting}>
             Post
           </Button>

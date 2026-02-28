@@ -6,3 +6,6 @@ export { Skeleton } from './Skeleton';
 export { Modal } from './Modal';
 export { IconButton } from './IconButton';
 export { Badge } from './Badge';
+export { ConfirmDialog } from './ConfirmDialog';
+export { ImageViewer } from './ImageViewer';
+export { MentionAutocomplete } from './MentionAutocomplete';
