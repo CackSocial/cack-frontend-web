@@ -3,28 +3,42 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send } from 'lucide-react';
 import { Avatar, IconButton } from '../../components/common';
 import { useMessagesStore } from '../../stores/messagesStore';
+import { useAuthStore } from '../../stores/authStore';
+import * as usersAPI from '../../api/users';
+import { mapUser } from '../../api/mappers';
 import { formatMessageTime } from '../../utils/format';
+import type { User } from '../../types';
 import styles from './ConversationPage.module.css';
 
 export function ConversationPage() {
-  const { conversationId } = useParams<{ conversationId: string }>();
+  const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
-  const conversations = useMessagesStore((s) => s.conversations);
+  const currentUser = useAuthStore((s) => s.user);
+  const token = typeof window !== 'undefined' ? localStorage.getItem('sc-token') : null;
+
   const messages = useMessagesStore((s) => s.messages);
   const sendMessage = useMessagesStore((s) => s.sendMessage);
+  const fetchConversation = useMessagesStore((s) => s.fetchConversation);
   const setActiveConversation = useMessagesStore((s) => s.setActiveConversation);
+  const initWS = useMessagesStore((s) => s.initWS);
+
+  const [partner, setPartner] = useState<User | null>(null);
   const [text, setText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const conversation = conversations.find((c) => c.id === conversationId);
-  const conversationMessages = conversationId
-    ? (messages[conversationId] ?? [])
-    : [];
+  const conversationMessages = username ? (messages[username] ?? []) : [];
 
   useEffect(() => {
-    if (conversationId) setActiveConversation(conversationId);
+    if (!username) return;
+    // Load partner profile
+    usersAPI.getProfile(username).then((res) => setPartner(mapUser(res.data!))).catch(() => {});
+    // Load messages
+    fetchConversation(username);
+    setActiveConversation(username);
+    // Init WebSocket
+    if (token) initWS(token);
     return () => setActiveConversation(null);
-  }, [conversationId, setActiveConversation]);
+  }, [username, fetchConversation, setActiveConversation, initWS, token]);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -33,17 +47,18 @@ export function ConversationPage() {
     });
   }, [conversationMessages.length]);
 
-  const handleSend = (e: FormEvent) => {
+  const handleSend = async (e: FormEvent) => {
     e.preventDefault();
-    if (!text.trim() || !conversationId) return;
-    sendMessage(conversationId, text.trim());
+    if (!text.trim() || !username) return;
+    const content = text.trim();
     setText('');
+    await sendMessage(username, content);
   };
 
-  if (!conversation) {
+  if (!partner) {
     return (
       <div className={styles.page}>
-        <div className={styles.notFound}>Conversation not found</div>
+        <div className={styles.notFound}>Loading…</div>
       </div>
     );
   }
@@ -55,17 +70,13 @@ export function ConversationPage() {
           <ArrowLeft size={18} />
         </button>
         <Avatar
-          src={conversation.participant.avatarUrl}
-          alt={conversation.participant.displayName}
+          src={partner.avatarUrl}
+          alt={partner.displayName}
           size="sm"
         />
         <div className={styles.headerInfo}>
-          <div className={styles.headerName}>
-            {conversation.participant.displayName}
-          </div>
-          <div className={styles.headerHandle}>
-            @{conversation.participant.username}
-          </div>
+          <div className={styles.headerName}>{partner.displayName}</div>
+          <div className={styles.headerHandle}>@{partner.username}</div>
         </div>
       </div>
 
@@ -73,7 +84,7 @@ export function ConversationPage() {
         {conversationMessages.map((msg) => (
           <div
             key={msg.id}
-            className={`${styles.bubble} ${msg.senderId === 'u0' ? styles.sent : styles.received}`}
+            className={`${styles.bubble} ${msg.senderId === currentUser?.id ? styles.sent : styles.received}`}
           >
             {msg.imageUrl && (
               <img
@@ -110,3 +121,4 @@ export function ConversationPage() {
     </div>
   );
 }
+

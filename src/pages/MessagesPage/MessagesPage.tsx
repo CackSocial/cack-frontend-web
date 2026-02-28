@@ -1,12 +1,20 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare } from 'lucide-react';
 import { Avatar } from '../../components/common';
 import { useMessagesStore } from '../../stores/messagesStore';
 import { formatMessageTime, truncate } from '../../utils/format';
+import { useAuthStore } from '../../stores/authStore';
 import styles from './MessagesPage.module.css';
 
 export function MessagesPage() {
   const conversations = useMessagesStore((s) => s.conversations);
+  const fetchConversations = useMessagesStore((s) => s.fetchConversations);
+  const currentUser = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
 
   return (
     <div className={styles.page}>
@@ -43,7 +51,7 @@ export function MessagesPage() {
                 </div>
                 {conv.lastMessage && (
                   <p className={styles.conversationPreview}>
-                    {conv.lastMessage.senderId === 'u0' ? 'You: ' : ''}
+                    {conv.lastMessage.senderId === currentUser?.id ? 'You: ' : ''}
                     {truncate(conv.lastMessage.content, 60)}
                   </p>
                 )}

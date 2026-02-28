@@ -1,12 +1,19 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Avatar } from '../common';
-import { mockTrendingTags, mockUsers } from '../../data/mockData';
+import * as tagsAPI from '../../api/tags';
+import { mapTag } from '../../api/mappers';
 import { formatCount } from '../../utils/format';
+import type { Tag } from '../../types';
 import styles from './RightPanel.module.css';
 
 export function RightPanel() {
-  const topTags = mockTrendingTags.slice(0, 7);
-  const suggestedUsers = mockUsers.slice(0, 4);
+  const [topTags, setTopTags] = useState<Tag[]>([]);
+
+  useEffect(() => {
+    tagsAPI.getTrendingTags().then((res) => {
+      setTopTags((res.data ?? []).map(mapTag).slice(0, 7));
+    }).catch(() => {});
+  }, []);
 
   return (
     <aside className={styles.panel}>
@@ -23,25 +30,6 @@ export function RightPanel() {
               <span className={styles.tagCount}>
                 {formatCount(tag.postsCount)} posts
               </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <h3 className={styles.sectionTitle}>Who to follow</h3>
-        <div className={styles.userList}>
-          {suggestedUsers.map((user) => (
-            <Link
-              key={user.id}
-              to={`/profile/${user.username}`}
-              className={styles.suggestedUser}
-            >
-              <Avatar src={user.avatarUrl} alt={user.displayName} size="sm" />
-              <div className={styles.suggestedInfo}>
-                <div className={styles.suggestedName}>{user.displayName}</div>
-                <div className={styles.suggestedHandle}>@{user.username}</div>
-              </div>
             </Link>
           ))}
         </div>

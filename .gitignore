@@ -3,3 +3,4 @@ dist/
 .vite/
 *.local
 CLAUDE.md
+src/api/

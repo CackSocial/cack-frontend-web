@@ -111,7 +111,7 @@ export default function App() {
             <Route path="post/:postId" element={<PostDetailPage />} />
             <Route path="explore" element={<ExplorePage />} />
             <Route path="messages" element={<MessagesPage />} />
-            <Route path="messages/:conversationId" element={<ConversationPage />} />
+            <Route path="messages/:username" element={<ConversationPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
 

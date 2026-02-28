@@ -11,32 +11,40 @@ export function PostComposer() {
   const user = useAuthStore((s) => s.user);
   const addPost = usePostsStore((s) => s.addPost);
   const [content, setContent] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const charCount = content.length;
   const isOverLimit = charCount > MAX_CHARS;
   const isNearLimit = charCount > MAX_CHARS * 0.9;
-  const canSubmit = content.trim().length > 0 && !isOverLimit;
+  const canSubmit = (content.trim().length > 0 || imageFile !== null) && !isOverLimit && !isSubmitting;
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!canSubmit) return;
-    addPost(content.trim(), imagePreview ?? undefined);
+    setIsSubmitting(true);
+    await addPost(content.trim(), imageFile);
     setContent('');
+    setImageFile(null);
     setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setIsSubmitting(false);
   };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setImageFile(file);
     const reader = new FileReader();
     reader.onload = () => setImagePreview(reader.result as string);
-    reader.onerror = () => setImagePreview(null);
+    reader.onerror = () => { setImageFile(null); setImagePreview(null); };
     reader.readAsDataURL(file);
   };
 
   const removeImage = () => {
+    setImageFile(null);
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -102,7 +110,7 @@ export function PostComposer() {
                   {charCount}/{MAX_CHARS}
                 </span>
               )}
-              <Button type="submit" size="sm" disabled={!canSubmit}>
+              <Button type="submit" size="sm" disabled={!canSubmit} isLoading={isSubmitting}>
                 Post
               </Button>
             </div>

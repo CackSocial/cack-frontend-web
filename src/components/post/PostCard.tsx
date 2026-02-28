@@ -61,9 +61,17 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
             <span className={styles.time}>{timeAgo(post.createdAt)}</span>
           </div>
 
-          <Link to={`/post/${post.id}`} className={styles.contentLink}>
+          <div
+            className={styles.contentLink}
+            onClick={() => navigate(`/post/${post.id}`)}
+            role="link"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/post/${post.id}`); }}
+          >
             <div className={styles.content}>
-              {renderTaggedContent(post.content, styles.tag, (e) => e.stopPropagation())}
+              {renderTaggedContent(post.content, styles.tag, (e) => {
+                e.stopPropagation();
+              })}
             </div>
             {post.imageUrl && (
               <img
@@ -73,7 +81,7 @@ export function PostCard({ post, index = 0 }: PostCardProps) {
                 loading="lazy"
               />
             )}
-          </Link>
+          </div>
 
           <div className={styles.actions}>
             <button

@@ -12,14 +12,15 @@ export function SettingsPage() {
   const [bio, setBio] = useState(user?.bio ?? '');
   const [saved, setSaved] = useState(false);
   const savedTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const isLoading = useAuthStore((s) => s.isLoading);
 
   useEffect(() => {
     return () => clearTimeout(savedTimer.current);
   }, []);
 
-  const handleSave = (e: FormEvent) => {
+  const handleSave = async (e: FormEvent) => {
     e.preventDefault();
-    updateProfile({ displayName: displayName.trim(), bio: bio.trim() });
+    await updateProfile({ displayName: displayName.trim(), bio: bio.trim() });
     setSaved(true);
     clearTimeout(savedTimer.current);
     savedTimer.current = setTimeout(() => setSaved(false), 2000);
@@ -54,8 +55,8 @@ export function SettingsPage() {
             placeholder="Tell people about yourself"
           />
           <div className={styles.saveRow}>
-            <Button type="submit" size="sm">
-              Save Changes
+            <Button type="submit" size="sm" disabled={isLoading}>
+              {isLoading ? 'Saving…' : 'Save Changes'}
             </Button>
             {saved && <span className={styles.saved}>Saved!</span>}
           </div>

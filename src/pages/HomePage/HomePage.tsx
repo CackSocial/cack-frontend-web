@@ -7,12 +7,13 @@ import styles from './HomePage.module.css';
 
 export function HomePage() {
   const posts = usePostsStore((s) => s.posts);
-  const [isLoading, setIsLoading] = useState(true);
+  const fetchTimeline = usePostsStore((s) => s.fetchTimeline);
+  const isLoading = usePostsStore((s) => s.isLoading);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(timer);
-  }, []);
+    fetchTimeline().finally(() => setInitialLoad(false));
+  }, [fetchTimeline]);
 
   return (
     <div className={styles.page}>
@@ -20,7 +21,7 @@ export function HomePage() {
       <PostComposer />
 
       <div className={styles.feed}>
-        {isLoading ? (
+        {(isLoading || initialLoad) ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className={styles.skeletonCard}>
               <Skeleton circle height={40} />

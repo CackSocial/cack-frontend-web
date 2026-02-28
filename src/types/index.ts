@@ -4,11 +4,12 @@ export interface User {
   displayName: string;
   bio: string;
   avatarUrl: string;
-  bannerUrl: string;
+  bannerUrl?: string;
   followersCount: number;
   followingCount: number;
-  postsCount: number;
-  createdAt: string;
+  postsCount?: number;
+  isFollowing?: boolean;
+  createdAt?: string;
 }
 
 export interface Post {
@@ -35,6 +36,13 @@ export interface Comment {
   createdAt: string;
 }
 
+export interface FlatComment {
+  id: string;
+  author: User;
+  content: string;
+  createdAt: string;
+}
+
 export interface Tag {
   name: string;
   postsCount: number;
@@ -43,6 +51,7 @@ export interface Tag {
 export interface Message {
   id: string;
   senderId: string;
+  receiverId?: string;
   content: string;
   imageUrl?: string;
   createdAt: string;
