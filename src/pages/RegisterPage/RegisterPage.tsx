@@ -47,7 +47,7 @@ export function RegisterPage() {
       </div>
       <div className={styles.card}>
         <div className={styles.header}>
-          <h1 className={styles.logo}>Social Connect</h1>
+          <h1 className={styles.logo}>Cack Social</h1>
           <p className={styles.subtitle}>Create your account</p>
         </div>
 

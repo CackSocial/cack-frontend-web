@@ -80,7 +80,7 @@ export const currentMockUser: User = {
   id: 'u0',
   username: 'you',
   displayName: 'Your Name',
-  bio: 'Welcome to SocialConnect! Edit your profile to get started.',
+  bio: 'Welcome to Cack Social! Edit your profile to get started.',
   avatarUrl: 'https://api.dicebear.com/9.x/avataaars/svg?seed=You',
   bannerUrl: '',
   followersCount: 47,

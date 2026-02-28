@@ -48,7 +48,7 @@ export function RightPanel() {
       </section>
 
       <div className={styles.footer}>
-        © 2025 SocialConnect · All rights reserved
+        © 2025 Cack Social · All rights reserved
       </div>
     </aside>
   );

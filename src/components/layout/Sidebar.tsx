@@ -31,7 +31,7 @@ export function Sidebar() {
 
   return (
     <aside className={styles.sidebar}>
-      <div className={styles.logo}>Social Connect</div>
+      <div className={styles.logo}>Cack Social</div>
 
       <nav className={styles.nav}>
         {navItems.map(({ to, icon: Icon, label }) => (

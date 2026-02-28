@@ -26,7 +26,7 @@ export function LoginPage() {
       </div>
       <div className={styles.card}>
         <div className={styles.header}>
-          <h1 className={styles.logo}>Social Connect</h1>
+          <h1 className={styles.logo}>Cack Social</h1>
           <p className={styles.subtitle}>Welcome back. Sign in to continue.</p>
         </div>
 
