@@ -1,27 +1,47 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { FileText } from 'lucide-react';
 import { PostComposer, PostCard } from '../../components/post';
 import { Skeleton } from '../../components/common';
 import { usePostsStore } from '../../stores/postsStore';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import type { Post } from '../../types';
 import styles from './HomePage.module.css';
 
 export function HomePage() {
   const posts = usePostsStore((s) => s.posts);
   const fetchTimeline = usePostsStore((s) => s.fetchTimeline);
   const isLoading = usePostsStore((s) => s.isLoading);
-  const [initialLoad, setInitialLoad] = useState(true);
+  const isLoadingMore = usePostsStore((s) => s.isLoadingMore);
+  const hasMore = usePostsStore((s) => s.hasMore);
+  const resetPagination = usePostsStore((s) => s.resetPagination);
+  const [quotingPost, setQuotingPost] = useState<Post | null>(null);
+
+  const loadMore = useCallback(async () => {
+    const { currentPage } = usePostsStore.getState();
+    await fetchTimeline(currentPage + 1, true);
+    return usePostsStore.getState().hasMore;
+  }, [fetchTimeline]);
+
+  const { sentinelRef, reset } = useInfiniteScroll({
+    loadMore,
+    isLoading: isLoading || isLoadingMore,
+    hasMore,
+  });
 
   useEffect(() => {
-    fetchTimeline().finally(() => setInitialLoad(false));
-  }, [fetchTimeline]);
+    resetPagination();
+    reset();
+    fetchTimeline(1, false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className={styles.page}>
       <h1 className={styles.pageTitle}>Home</h1>
-      <PostComposer />
+      <PostComposer quotePost={quotingPost} onClearQuote={() => setQuotingPost(null)} />
 
       <div className={styles.feed}>
-        {(isLoading || initialLoad) ? (
+        {isLoading && posts.length === 0 ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className={styles.skeletonCard}>
               <Skeleton circle height={40} />
@@ -41,9 +61,18 @@ export function HomePage() {
             </p>
           </div>
         ) : (
-          posts.map((post, i) => (
-            <PostCard key={post.id} post={post} index={i} />
-          ))
+          <>
+            {posts.map((post, i) => (
+              <PostCard key={post.id} post={post} index={i} onQuote={(p) => {
+                setQuotingPost(p);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }} />
+            ))}
+            {isLoadingMore && (
+              <div className={styles.loadingMore}>Loading more…</div>
+            )}
+            {hasMore && <div ref={sentinelRef} className={styles.sentinel} />}
+          </>
         )}
       </div>
     </div>

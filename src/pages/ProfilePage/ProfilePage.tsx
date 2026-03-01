@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Avatar, Button } from '../../components/common';
 import { PostCard } from '../../components/post';
 import { useAuthStore } from '../../stores/authStore';
 import { usePostsStore } from '../../stores/postsStore';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import * as usersAPI from '../../api/users';
 import * as followsAPI from '../../api/follows';
 import { mapUser } from '../../api/mappers';
 import { formatCount } from '../../utils/format';
 import type { User, Post } from '../../types';
 import styles from './ProfilePage.module.css';
+
+const POSTS_LIMIT = 20;
 
 export function ProfilePage() {
   const { username } = useParams<{ username: string }>();
@@ -26,24 +29,61 @@ export function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
+  const [postsHasMore, setPostsHasMore] = useState(true);
+  const [isLoadingMorePosts, setIsLoadingMorePosts] = useState(false);
+  const postsPageRef = useRef(1);
+
   useEffect(() => {
     if (!username) return;
     setIsLoading(true);
     setNotFound(false);
+    setUserPosts([]);
+    postsPageRef.current = 1;
+    setPostsHasMore(true);
 
     Promise.all([
       usersAPI.getProfile(username),
-      fetchUserPosts(username),
+      fetchUserPosts(username, 1),
     ])
       .then(([profileRes, posts]) => {
         const user = mapUser(profileRes.data!);
         setProfileUser(user);
         setFollowing(user.isFollowing ?? false);
         setUserPosts(posts);
+        setPostsHasMore(posts.length >= POSTS_LIMIT);
       })
       .catch(() => setNotFound(true))
       .finally(() => setIsLoading(false));
   }, [username, fetchUserPosts]);
+
+  const loadMorePosts = useCallback(async () => {
+    if (!username) return false;
+    const nextPage = postsPageRef.current + 1;
+    setIsLoadingMorePosts(true);
+    try {
+      const newPosts = await fetchUserPosts(username, nextPage);
+      setUserPosts((prev) => [...prev, ...newPosts]);
+      const hasMore = newPosts.length >= POSTS_LIMIT;
+      setPostsHasMore(hasMore);
+      postsPageRef.current = nextPage;
+      return hasMore;
+    } catch {
+      return false;
+    } finally {
+      setIsLoadingMorePosts(false);
+    }
+  }, [username, fetchUserPosts]);
+
+  const { sentinelRef, reset: resetScroll } = useInfiniteScroll({
+    loadMore: loadMorePosts,
+    isLoading: isLoading || isLoadingMorePosts,
+    hasMore: postsHasMore,
+  });
+
+  // Reset scroll when username changes
+  useEffect(() => {
+    resetScroll();
+  }, [username, resetScroll]);
 
   const handleFollowToggle = async () => {
     if (!username) return;
@@ -147,9 +187,17 @@ export function ProfilePage() {
 
       <div>
         {displayPosts.length > 0 ? (
-          displayPosts.map((post, i) => (
-            <PostCard key={post.id} post={post} index={i} />
-          ))
+          <>
+            {displayPosts.map((post, i) => (
+              <PostCard key={post.id} post={post} index={i} />
+            ))}
+            {activeTab === 'posts' && isLoadingMorePosts && (
+              <div className={styles.loadingMore}>Loading more…</div>
+            )}
+            {activeTab === 'posts' && postsHasMore && (
+              <div ref={sentinelRef} className={styles.sentinel} />
+            )}
+          </>
         ) : (
           <div className={styles.notFound}>
             {activeTab === 'posts' ? 'No posts yet' : 'No liked posts yet'}

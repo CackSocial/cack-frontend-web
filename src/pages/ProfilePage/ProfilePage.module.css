@@ -124,3 +124,15 @@
   padding: var(--space-16) var(--space-4);
   color: var(--color-text-tertiary);
 }
+
+.sentinel {
+  height: 1px;
+}
+
+.loadingMore {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}

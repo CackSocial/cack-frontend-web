@@ -1,17 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { Avatar } from '../../components/common';
 import { PostCard } from '../../components/post';
 import { useDebounce } from '../../hooks/useDebounce';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import * as tagsAPI from '../../api/tags';
 import * as usersAPI from '../../api/users';
-import * as postsAPI from '../../api/posts';
 import { mapTag, mapUser, mapPost } from '../../api/mappers';
 import { formatCount } from '../../utils/format';
 import type { Tag, Post } from '../../types';
 import type { User } from '../../types';
 import styles from './ExplorePage.module.css';
+
+const TAG_POSTS_LIMIT = 20;
 
 export function ExplorePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -24,6 +26,11 @@ export function ExplorePage() {
   const [searchUser, setSearchUser] = useState<User | null>(null);
   const [searchNotFound, setSearchNotFound] = useState(false);
 
+  const [tagLoading, setTagLoading] = useState(false);
+  const [tagLoadingMore, setTagLoadingMore] = useState(false);
+  const [tagHasMore, setTagHasMore] = useState(true);
+  const tagPageRef = useRef(1);
+
   // Fetch trending tags on mount
   useEffect(() => {
     tagsAPI.getTrendingTags().then((res) => {
@@ -31,14 +38,54 @@ export function ExplorePage() {
     }).catch(() => {});
   }, []);
 
-  // Fetch posts for active tag
+  // Fetch posts for active tag (page 1)
   useEffect(() => {
-    if (!activeTag) { setTagPosts([]); return; }
-    postsAPI.getUserPosts; // silence unused import
-    tagsAPI.getPostsByTag(activeTag).then((res) => {
-      setTagPosts(res.data.map(mapPost));
-    }).catch(() => setTagPosts([]));
+    if (!activeTag) {
+      setTagPosts([]);
+      setTagHasMore(true);
+      tagPageRef.current = 1;
+      return;
+    }
+    setTagLoading(true);
+    tagPageRef.current = 1;
+    setTagHasMore(true);
+    tagsAPI.getPostsByTag(activeTag, 1, TAG_POSTS_LIMIT).then((res) => {
+      const posts = res.data.map(mapPost);
+      setTagPosts(posts);
+      setTagHasMore(posts.length >= TAG_POSTS_LIMIT);
+    }).catch(() => { setTagPosts([]); setTagHasMore(false); })
+      .finally(() => setTagLoading(false));
   }, [activeTag]);
+
+  const loadMoreTagPosts = useCallback(async () => {
+    if (!activeTag) return false;
+    const nextPage = tagPageRef.current + 1;
+    setTagLoadingMore(true);
+    try {
+      const res = await tagsAPI.getPostsByTag(activeTag, nextPage, TAG_POSTS_LIMIT);
+      const newPosts = res.data.map(mapPost);
+      setTagPosts((prev) => [...prev, ...newPosts]);
+      const hasMore = newPosts.length >= TAG_POSTS_LIMIT;
+      setTagHasMore(hasMore);
+      tagPageRef.current = nextPage;
+      return hasMore;
+    } catch {
+      return false;
+    } finally {
+      setTagLoadingMore(false);
+    }
+  }, [activeTag]);
+
+  const { sentinelRef: tagSentinelRef, reset: resetTagScroll } = useInfiniteScroll({
+    loadMore: loadMoreTagPosts,
+    isLoading: tagLoading || tagLoadingMore,
+    hasMore: tagHasMore,
+  });
+
+  // Reset scroll position when tag changes
+  useEffect(() => {
+    resetTagScroll();
+  }, [activeTag, resetTagScroll]);
 
   // Search: exact username lookup
   const performSearch = useCallback(async (q: string) => {
@@ -109,10 +156,18 @@ export function ExplorePage() {
               Clear
             </button>
           </div>
-          {tagPosts.length > 0 ? (
-            tagPosts.map((post, i) => (
-              <PostCard key={post.id} post={post} index={i} />
-            ))
+          {tagLoading ? (
+            <div className={styles.noResults}>Loading…</div>
+          ) : tagPosts.length > 0 ? (
+            <>
+              {tagPosts.map((post, i) => (
+                <PostCard key={post.id} post={post} index={i} />
+              ))}
+              {tagLoadingMore && (
+                <div className={styles.loadingMore}>Loading more…</div>
+              )}
+              {tagHasMore && <div ref={tagSentinelRef} className={styles.sentinel} />}
+            </>
           ) : (
             <div className={styles.noResults}>
               No posts found with #{activeTag}
