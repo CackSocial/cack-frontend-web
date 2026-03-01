@@ -75,6 +75,25 @@
   border: 2px solid var(--color-bg-primary);
 }
 
+.unreadBadge {
+  position: absolute;
+  top: 6px;
+  left: 26px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--weight-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-bg-primary);
+  line-height: 1;
+}
+
 .bottom {
   display: flex;
   flex-direction: column;

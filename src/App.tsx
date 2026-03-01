@@ -45,6 +45,16 @@ const SettingsPage = lazy(() =>
     default: m.SettingsPage,
   }))
 );
+const BookmarksPage = lazy(() =>
+  import('./pages/BookmarksPage/BookmarksPage').then((m) => ({
+    default: m.BookmarksPage,
+  }))
+);
+const NotificationsPage = lazy(() =>
+  import('./pages/NotificationsPage/NotificationsPage').then((m) => ({
+    default: m.NotificationsPage,
+  }))
+);
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -110,6 +120,8 @@ export default function App() {
             <Route path="profile/:username" element={<ProfilePage />} />
             <Route path="post/:postId" element={<PostDetailPage />} />
             <Route path="explore" element={<ExplorePage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="bookmarks" element={<BookmarksPage />} />
             <Route path="messages" element={<MessagesPage />} />
             <Route path="messages/:username" element={<ConversationPage />} />
             <Route path="settings" element={<SettingsPage />} />

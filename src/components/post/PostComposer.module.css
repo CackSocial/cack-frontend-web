@@ -110,3 +110,88 @@
   display: flex;
   align-items: center;
 }
+
+/* Quote preview */
+.quotePreview {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--transition-theme);
+}
+
+.quotePreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-bg-secondary);
+}
+
+.quotePreviewLabel {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.quotePreviewClose {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-full);
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.quotePreviewClose:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-hover);
+}
+
+.quotePreviewCard {
+  padding: var(--space-3);
+}
+
+.quotePreviewMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-1);
+}
+
+.quotePreviewUsername {
+  color: var(--color-text-tertiary);
+}
+
+.quotePreviewDot {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.quotePreviewTime {
+  font-size: var(--text-sm);
+  color: var(--color-text-tertiary);
+}
+
+.quotePreviewContent {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.quotePreviewTag {
+  color: var(--color-accent);
+  font-weight: var(--weight-medium);
+}

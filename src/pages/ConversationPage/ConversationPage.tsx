@@ -1,7 +1,7 @@
 import { type FormEvent, useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send } from 'lucide-react';
-import { Avatar, IconButton } from '../../components/common';
+import { Avatar, IconButton, ImageViewer } from '../../components/common';
 import { useMessagesStore } from '../../stores/messagesStore';
 import { useAuthStore } from '../../stores/authStore';
 import * as usersAPI from '../../api/users';
@@ -24,6 +24,7 @@ export function ConversationPage() {
 
   const [partner, setPartner] = useState<User | null>(null);
   const [text, setText] = useState('');
+  const [viewerImage, setViewerImage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const conversationMessages = username ? (messages[username] ?? []) : [];
@@ -91,6 +92,8 @@ export function ConversationPage() {
                 src={msg.imageUrl}
                 alt="Shared image"
                 className={styles.bubbleImage}
+                onClick={() => setViewerImage(msg.imageUrl!)}
+                style={{ cursor: 'zoom-in' }}
               />
             )}
             <div>{msg.content}</div>
@@ -118,6 +121,13 @@ export function ConversationPage() {
           <Send size={18} />
         </IconButton>
       </form>
+
+      <ImageViewer
+        src={viewerImage ?? ''}
+        alt="Shared image"
+        isOpen={!!viewerImage}
+        onClose={() => setViewerImage(null)}
+      />
     </div>
   );
 }

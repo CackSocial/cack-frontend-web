@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { RightPanel } from './RightPanel';
 import { MobileNav } from './MobileNav';
+import { ToastContainer } from '../common/Toast/ToastContainer';
 import styles from './AppLayout.module.css';
 
 export function AppLayout() {
@@ -15,6 +16,7 @@ export function AppLayout() {
       </main>
       <RightPanel />
       <MobileNav />
+      <ToastContainer />
     </div>
   );
 }

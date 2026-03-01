@@ -21,6 +21,11 @@ export interface Post {
   likesCount: number;
   commentsCount: number;
   isLiked: boolean;
+  isBookmarked: boolean;
+  postType: 'original' | 'repost' | 'quote';
+  originalPost: Post | null;
+  repostCount: number;
+  isReposted: boolean;
   createdAt: string;
 }
 
@@ -64,6 +69,16 @@ export interface Conversation {
   lastMessage: Message | null;
   unreadCount: number;
   updatedAt: string;
+}
+
+export interface Notification {
+  id: string;
+  actor: User;
+  type: 'like' | 'follow' | 'comment' | 'mention' | 'repost';
+  referenceId: string;
+  referenceType: string;
+  isRead: boolean;
+  createdAt: string;
 }
 
 export type Theme = 'light' | 'dark';
