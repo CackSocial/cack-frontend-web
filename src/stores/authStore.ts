@@ -4,6 +4,7 @@ import * as authAPI from '../api/auth';
 import * as usersAPI from '../api/users';
 import { mapUser } from '../api/mappers';
 import { APIError } from '../api/client';
+import { useToastStore } from './toastStore';
 
 interface AuthState {
   user: User | null;
@@ -12,8 +13,9 @@ interface AuthState {
   error: string | null;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, displayName: string, password: string) => Promise<void>;
-  logout: () => void;
-  updateProfile: (updates: { displayName?: string; bio?: string }) => Promise<void>;
+  logout: () => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
+  updateProfile: (updates: { displayName?: string; bio?: string; avatar?: File }) => Promise<void>;
   clearError: () => void;
 }
 
@@ -44,6 +46,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (err) {
       const msg = err instanceof APIError ? err.message : 'Login failed';
       set({ isLoading: false, error: msg });
+      useToastStore.getState().addToast(msg, 'error');
     }
   },
 
@@ -58,25 +61,46 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (err) {
       const msg = err instanceof APIError ? err.message : 'Registration failed';
       set({ isLoading: false, error: msg });
+      useToastStore.getState().addToast(msg, 'error');
     }
   },
 
-  logout: () => {
+  logout: async () => {
+    try {
+      await authAPI.logout();
+    } catch {
+      // Clear local state even if server logout fails
+    }
     localStorage.removeItem('sc-token');
     localStorage.removeItem('sc-user');
     set({ user: null, isAuthenticated: false, error: null });
   },
 
-  updateProfile: async ({ displayName, bio }: { displayName?: string; bio?: string }) => {
+  deleteAccount: async (password: string) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await usersAPI.updateProfile(displayName ?? '', bio ?? '');
+      await usersAPI.deleteAccount(password);
+      localStorage.removeItem('sc-token');
+      localStorage.removeItem('sc-user');
+      set({ user: null, isAuthenticated: false, isLoading: false });
+    } catch (err) {
+      const msg = err instanceof APIError ? err.message : 'Failed to delete account';
+      set({ isLoading: false, error: msg });
+      throw err;
+    }
+  },
+
+  updateProfile: async ({ displayName, bio, avatar }: { displayName?: string; bio?: string; avatar?: File }) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await usersAPI.updateProfile(displayName ?? '', bio ?? '', avatar);
       const user = mapUser(res.data!);
       localStorage.setItem('sc-user', JSON.stringify(user));
       set({ user, isLoading: false });
     } catch (err) {
       const msg = err instanceof APIError ? err.message : 'Update failed';
       set({ isLoading: false, error: msg });
+      useToastStore.getState().addToast(msg, 'error');
     }
   },
 

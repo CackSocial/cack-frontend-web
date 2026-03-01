@@ -3,6 +3,7 @@ import type { Conversation, Message } from '../types';
 import * as messagesAPI from '../api/messages';
 import { mapConversation, mapMessage } from '../api/mappers';
 import { WSClient, type WSIncomingMessage } from '../api/ws';
+import { useToastStore } from './toastStore';
 
 interface MessagesState {
   conversations: Conversation[];
@@ -36,6 +37,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
     const client = new WSClient(token);
     client.connect();
     client.onMessage((msg: WSIncomingMessage) => {
+      if (msg.type !== 'message') return;
       const message = mapMessage({
         id: msg.id,
         sender_id: msg.sender_id,
@@ -116,7 +118,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         };
       });
     } catch {
-      // ignore send errors silently; could surface via toast
+      useToastStore.getState().addToast('Failed to send message', 'error');
     }
   },
 
