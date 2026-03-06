@@ -47,19 +47,43 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         read_at: null,
         created_at: msg.created_at,
       });
-      // Determine which conversation this belongs to
-      // For the current user, partner is the other side
-      const conversationKey =
-        get().activeConversationId ?? msg.sender_id;
-      set((state) => {
-        const existing = state.messages[conversationKey] ?? [];
-        // Avoid duplicate (we echo back too)
-        if (existing.some((m) => m.id === message.id)) return state;
+
+      // Resolve the conversation key (partner's username).
+      // When the user is in the conversation, use activeConversationId (username).
+      // Otherwise, look up the partner from existing conversations by their ID.
+      const state = get();
+      let conversationKey = state.activeConversationId;
+      if (!conversationKey) {
+        const partner = state.conversations.find(
+          (c) => c.participant.id === msg.sender_id || c.participant.id === msg.receiver_id,
+        );
+        conversationKey = partner?.participant.username ?? msg.sender_id;
+      }
+
+      set((prev) => {
+        const existing = prev.messages[conversationKey] ?? [];
+        // Avoid duplicates (sender also receives WS echo after REST send)
+        if (existing.some((m) => m.id === message.id)) return prev;
+
+        // Update the conversation preview for non-active conversations
+        const updatedConversations = prev.conversations.map((c) => {
+          if (c.participant.id === msg.sender_id) {
+            return {
+              ...c,
+              lastMessage: message,
+              updatedAt: message.createdAt,
+              unreadCount: prev.activeConversationId ? c.unreadCount : c.unreadCount + 1,
+            };
+          }
+          return c;
+        });
+
         return {
           messages: {
-            ...state.messages,
+            ...prev.messages,
             [conversationKey]: [...existing, message],
           },
+          conversations: updatedConversations,
         };
       });
     });
@@ -112,6 +136,10 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
             ? { ...c, lastMessage: msg, updatedAt: msg.createdAt }
             : c,
         );
+        // Avoid duplicate if WS echo arrived before REST response
+        if (existing.some((m) => m.id === msg.id)) {
+          return { conversations };
+        }
         return {
           messages: { ...state.messages, [conversationId]: [...existing, msg] },
           conversations,

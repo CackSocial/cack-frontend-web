@@ -14,13 +14,11 @@ export function ConversationPage() {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.user);
-  const token = typeof window !== 'undefined' ? localStorage.getItem('sc-token') : null;
 
   const messages = useMessagesStore((s) => s.messages);
   const sendMessage = useMessagesStore((s) => s.sendMessage);
   const fetchConversation = useMessagesStore((s) => s.fetchConversation);
   const setActiveConversation = useMessagesStore((s) => s.setActiveConversation);
-  const initWS = useMessagesStore((s) => s.initWS);
 
   const [partner, setPartner] = useState<User | null>(null);
   const [text, setText] = useState('');
@@ -31,15 +29,11 @@ export function ConversationPage() {
 
   useEffect(() => {
     if (!username) return;
-    // Load partner profile
     usersAPI.getProfile(username).then((res) => setPartner(mapUser(res.data!))).catch(() => {});
-    // Load messages
     fetchConversation(username);
     setActiveConversation(username);
-    // Init WebSocket
-    if (token) initWS(token);
     return () => setActiveConversation(null);
-  }, [username, fetchConversation, setActiveConversation, initWS, token]);
+  }, [username, fetchConversation, setActiveConversation]);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
