@@ -1,15 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Mail } from 'lucide-react';
 import { Avatar, Button } from '../../components/common';
 import { PostCard } from '../../components/post';
 import { useAuthStore } from '../../stores/authStore';
-import { usePostsStore } from '../../stores/postsStore';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import * as usersAPI from '../../api/users';
 import * as followsAPI from '../../api/follows';
-import { mapUser } from '../../api/mappers';
+import * as likesAPI from '../../api/likes';
+import { mapUser, mapPost } from '../../api/mappers';
 import { formatCount } from '../../utils/format';
+import * as postsAPI from '../../api/posts';
+import { mapPost as mapPostLocal } from '../../api/mappers';
 import type { User, Post } from '../../types';
 import styles from './ProfilePage.module.css';
 
@@ -19,11 +21,10 @@ export function ProfilePage() {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.user);
-  const fetchUserPosts = usePostsStore((s) => s.fetchUserPosts);
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
-  const [likedPosts] = useState<Post[]>([]);
+  const [likedPosts, setLikedPosts] = useState<Post[]>([]);
   const [activeTab, setActiveTab] = useState<'posts' | 'likes'>('posts');
   const [following, setFollowing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,35 +34,63 @@ export function ProfilePage() {
   const [isLoadingMorePosts, setIsLoadingMorePosts] = useState(false);
   const postsPageRef = useRef(1);
 
+  const [likesHasMore, setLikesHasMore] = useState(true);
+  const [isLoadingMoreLikes, setIsLoadingMoreLikes] = useState(false);
+  const [likesLoaded, setLikesLoaded] = useState(false);
+  const likesPageRef = useRef(1);
+
   useEffect(() => {
     if (!username) return;
     setIsLoading(true);
     setNotFound(false);
     setUserPosts([]);
+    setLikedPosts([]);
+    setLikesLoaded(false);
     postsPageRef.current = 1;
+    likesPageRef.current = 1;
     setPostsHasMore(true);
+    setLikesHasMore(true);
 
     Promise.all([
       usersAPI.getProfile(username),
-      fetchUserPosts(username, 1),
+      postsAPI.getUserPosts(username, 1, POSTS_LIMIT),
     ])
-      .then(([profileRes, posts]) => {
+      .then(([profileRes, postsRes]) => {
         const user = mapUser(profileRes.data!);
         setProfileUser(user);
         setFollowing(user.isFollowing ?? false);
+        const posts = postsRes.data.map(mapPostLocal);
         setUserPosts(posts);
         setPostsHasMore(posts.length >= POSTS_LIMIT);
       })
       .catch(() => setNotFound(true))
       .finally(() => setIsLoading(false));
-  }, [username, fetchUserPosts]);
+  }, [username]);
+
+  // Load liked posts when "Likes" tab is first activated
+  useEffect(() => {
+    if (activeTab !== 'likes' || likesLoaded || !username) return;
+    setIsLoadingMoreLikes(true);
+    likesAPI
+      .getLikedPosts(username, 1, POSTS_LIMIT)
+      .then((res) => {
+        const posts = res.data.map(mapPost);
+        setLikedPosts(posts);
+        setLikesHasMore(posts.length >= POSTS_LIMIT);
+        setLikesLoaded(true);
+        likesPageRef.current = 1;
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingMoreLikes(false));
+  }, [activeTab, likesLoaded, username]);
 
   const loadMorePosts = useCallback(async () => {
     if (!username) return false;
     const nextPage = postsPageRef.current + 1;
     setIsLoadingMorePosts(true);
     try {
-      const newPosts = await fetchUserPosts(username, nextPage);
+      const res = await postsAPI.getUserPosts(username, nextPage, POSTS_LIMIT);
+      const newPosts = res.data.map(mapPostLocal);
       setUserPosts((prev) => [...prev, ...newPosts]);
       const hasMore = newPosts.length >= POSTS_LIMIT;
       setPostsHasMore(hasMore);
@@ -72,18 +101,44 @@ export function ProfilePage() {
     } finally {
       setIsLoadingMorePosts(false);
     }
-  }, [username, fetchUserPosts]);
+  }, [username]);
 
-  const { sentinelRef, reset: resetScroll } = useInfiniteScroll({
+  const loadMoreLikes = useCallback(async () => {
+    if (!username) return false;
+    const nextPage = likesPageRef.current + 1;
+    setIsLoadingMoreLikes(true);
+    try {
+      const res = await likesAPI.getLikedPosts(username, nextPage, POSTS_LIMIT);
+      const newPosts = res.data.map(mapPost);
+      setLikedPosts((prev) => [...prev, ...newPosts]);
+      const hasMore = newPosts.length >= POSTS_LIMIT;
+      setLikesHasMore(hasMore);
+      likesPageRef.current = nextPage;
+      return hasMore;
+    } catch {
+      return false;
+    } finally {
+      setIsLoadingMoreLikes(false);
+    }
+  }, [username]);
+
+  const { sentinelRef: postsSentinelRef, reset: resetPostsScroll } = useInfiniteScroll({
     loadMore: loadMorePosts,
     isLoading: isLoading || isLoadingMorePosts,
     hasMore: postsHasMore,
   });
 
+  const { sentinelRef: likesSentinelRef, reset: resetLikesScroll } = useInfiniteScroll({
+    loadMore: loadMoreLikes,
+    isLoading: isLoadingMoreLikes,
+    hasMore: likesHasMore,
+  });
+
   // Reset scroll when username changes
   useEffect(() => {
-    resetScroll();
-  }, [username, resetScroll]);
+    resetPostsScroll();
+    resetLikesScroll();
+  }, [username, resetPostsScroll, resetLikesScroll]);
 
   const handleFollowToggle = async () => {
     if (!username) return;
@@ -119,6 +174,9 @@ export function ProfilePage() {
 
   const isOwnProfile = currentUser?.username === username;
   const displayPosts = activeTab === 'posts' ? userPosts : likedPosts;
+  const isLoadingMore = activeTab === 'posts' ? isLoadingMorePosts : isLoadingMoreLikes;
+  const hasMore = activeTab === 'posts' ? postsHasMore : likesHasMore;
+  const sentinelRef = activeTab === 'posts' ? postsSentinelRef : likesSentinelRef;
 
   return (
     <div className={styles.page}>
@@ -159,13 +217,22 @@ export function ProfilePage() {
               Edit Profile
             </Button>
           ) : (
-            <Button
-              variant={following ? 'secondary' : 'primary'}
-              size="sm"
-              onClick={handleFollowToggle}
-            >
-              {following ? 'Following' : 'Follow'}
-            </Button>
+            <>
+              <Button
+                variant={following ? 'secondary' : 'primary'}
+                size="sm"
+                onClick={handleFollowToggle}
+              >
+                {following ? 'Following' : 'Follow'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => navigate(`/messages/${username}`)}
+              >
+                <Mail size={16} />
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -191,10 +258,10 @@ export function ProfilePage() {
             {displayPosts.map((post, i) => (
               <PostCard key={post.id} post={post} index={i} />
             ))}
-            {activeTab === 'posts' && isLoadingMorePosts && (
+            {isLoadingMore && (
               <div className={styles.loadingMore}>Loading more…</div>
             )}
-            {activeTab === 'posts' && postsHasMore && (
+            {hasMore && (
               <div ref={sentinelRef} className={styles.sentinel} />
             )}
           </>
@@ -207,4 +274,5 @@ export function ProfilePage() {
     </div>
   );
 }
+
 
