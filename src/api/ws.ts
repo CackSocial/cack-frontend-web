@@ -33,6 +33,7 @@ export class WSClient {
   private socket: WebSocket | null = null;
   private handlers: Set<MessageHandler> = new Set();
   private token: string;
+  private closedIntentionally = false;
 
   constructor(token: string) {
     this.token = token;
@@ -40,6 +41,7 @@ export class WSClient {
 
   connect() {
     if (this.socket) return;
+    this.closedIntentionally = false;
     this.socket = new WebSocket(`${WS_BASE}/ws?token=${encodeURIComponent(this.token)}`);
 
     this.socket.onmessage = (event) => {
@@ -63,7 +65,9 @@ export class WSClient {
 
     this.socket.onclose = () => {
       this.socket = null;
-      useToastStore.getState().addToast('Connection lost. Reconnecting...', 'warning');
+      if (!this.closedIntentionally) {
+        useToastStore.getState().addToast('Connection lost. Reconnecting...', 'warning');
+      }
     };
   }
 
@@ -85,6 +89,7 @@ export class WSClient {
   }
 
   disconnect() {
+    this.closedIntentionally = true;
     this.socket?.close();
     this.socket = null;
     this.handlers.clear();

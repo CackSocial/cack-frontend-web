@@ -14,10 +14,15 @@ export function AppLayout() {
   const disconnectWS = useMessagesStore((s) => s.disconnectWS);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      disconnectWS();
+      return;
+    }
     const token = localStorage.getItem('sc-token');
     if (token) initWS(token);
-    return () => disconnectWS();
+    // No cleanup — WS lifecycle is tied to auth state, not component mount.
+    // This prevents React StrictMode's double-mount from killing the socket
+    // before the connection is established.
   }, [isAuthenticated, initWS, disconnectWS]);
 
   return (
