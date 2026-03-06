@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import styles from './ImageViewer.module.css';
 
@@ -103,7 +104,7 @@ export function ImageViewer({ src, alt = 'Image', isOpen, onClose }: ImageViewer
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div
       className={styles.overlay}
       onClick={onClose}
@@ -149,6 +150,7 @@ export function ImageViewer({ src, alt = 'Image', isOpen, onClose }: ImageViewer
         onTouchEnd={handleTouchEnd}
         draggable={false}
       />
-    </div>
+    </div>,
+    document.body
   );
 }
