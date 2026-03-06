@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { MessageSquare } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { MessageSquare, PenSquare } from 'lucide-react';
 import { Avatar } from '../../components/common';
 import { useMessagesStore } from '../../stores/messagesStore';
 import { formatMessageTime, truncate } from '../../utils/format';
@@ -11,14 +11,53 @@ export function MessagesPage() {
   const conversations = useMessagesStore((s) => s.conversations);
   const fetchConversations = useMessagesStore((s) => s.fetchConversations);
   const currentUser = useAuthStore((s) => s.user);
+  const navigate = useNavigate();
+
+  const [showNewMessage, setShowNewMessage] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
 
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
 
+  const handleNewConversation = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    const username = newUsername.trim().replace(/^@/, '');
+    if (!username) return;
+    navigate(`/messages/${username}`);
+  }, [newUsername, navigate]);
+
   return (
     <div className={styles.page}>
-      <h1 className={styles.pageTitle}>Messages</h1>
+      <div className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>Messages</h1>
+        <button
+          className={styles.newMessageBtn}
+          onClick={() => setShowNewMessage((v) => !v)}
+          aria-label="New message"
+        >
+          <PenSquare size={20} />
+        </button>
+      </div>
+
+      {showNewMessage && (
+        <form className={styles.newMessageForm} onSubmit={handleNewConversation}>
+          <input
+            className={styles.newMessageInput}
+            placeholder="Enter username…"
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+            autoFocus
+          />
+          <button
+            type="submit"
+            className={styles.newMessageSubmit}
+            disabled={!newUsername.trim()}
+          >
+            Chat
+          </button>
+        </form>
+      )}
 
       <div className={styles.list}>
         {conversations.length === 0 ? (
