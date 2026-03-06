@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: var(--z-image-viewer);
   animation: fadeIn 0.2s ease forwards;
 }
 
@@ -15,7 +15,7 @@
   right: var(--space-4);
   display: flex;
   gap: var(--space-2);
-  z-index: 10000;
+  z-index: calc(var(--z-image-viewer) + 1);
 }
 
 .toolBtn {

@@ -4,6 +4,9 @@ import { useNotificationsStore } from '../stores/notificationsStore';
 
 const WS_BASE = (import.meta.env.VITE_WS_BASE_URL as string) || 'ws://localhost:8080/api/v1';
 
+const MAX_RECONNECT_ATTEMPTS = 5;
+const BASE_RECONNECT_DELAY_MS = 1000;
+
 export type WSIncomingMessage =
   | {
       type: 'message';
@@ -34,6 +37,8 @@ export class WSClient {
   private handlers: Set<MessageHandler> = new Set();
   private token: string;
   private closedIntentionally = false;
+  private reconnectAttempts = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(token: string) {
     this.token = token;
@@ -43,6 +48,10 @@ export class WSClient {
     if (this.socket) return;
     this.closedIntentionally = false;
     this.socket = new WebSocket(`${WS_BASE}/ws?token=${encodeURIComponent(this.token)}`);
+
+    this.socket.onopen = () => {
+      this.reconnectAttempts = 0;
+    };
 
     this.socket.onmessage = (event) => {
       try {
@@ -54,8 +63,8 @@ export class WSClient {
         }
 
         this.handlers.forEach((h) => h(msg));
-      } catch {
-        // ignore malformed messages
+      } catch (err) {
+        console.warn('[WS] Failed to parse message:', err);
       }
     };
 
@@ -66,9 +75,28 @@ export class WSClient {
     this.socket.onclose = () => {
       this.socket = null;
       if (!this.closedIntentionally) {
-        useToastStore.getState().addToast('Connection lost. Reconnecting...', 'warning');
+        this.scheduleReconnect();
       }
     };
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      useToastStore.getState().addToast('Connection lost. Please refresh the page.', 'error');
+      return;
+    }
+
+    const delay = BASE_RECONNECT_DELAY_MS * Math.pow(2, this.reconnectAttempts);
+    this.reconnectAttempts++;
+
+    if (this.reconnectAttempts === 1) {
+      useToastStore.getState().addToast('Connection lost. Reconnecting...', 'warning');
+    }
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      this.connect();
+    }, delay);
   }
 
   send(receiverId: string, content: string, imageUrl?: string) {
@@ -90,8 +118,13 @@ export class WSClient {
 
   disconnect() {
     this.closedIntentionally = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.socket?.close();
     this.socket = null;
     this.handlers.clear();
+    this.reconnectAttempts = 0;
   }
 }

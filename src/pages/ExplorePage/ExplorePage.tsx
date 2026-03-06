@@ -170,8 +170,13 @@ export function ExplorePage() {
     if (!q.trim()) { setSearchUser(null); setSearchNotFound(false); return; }
     try {
       const res = await usersAPI.lookupUser(q.trim());
-      setSearchUser(mapUser(res.data!));
-      setSearchNotFound(false);
+      if (res.data) {
+        setSearchUser(mapUser(res.data));
+        setSearchNotFound(false);
+      } else {
+        setSearchUser(null);
+        setSearchNotFound(true);
+      }
     } catch {
       setSearchUser(null);
       setSearchNotFound(true);

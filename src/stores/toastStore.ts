@@ -22,6 +22,8 @@ const DEFAULT_DURATIONS: Record<ToastType, number> = {
   warning: 6000,
 };
 
+const timeoutIds = new Map<string, ReturnType<typeof setTimeout>>();
+
 export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
 
@@ -32,12 +34,19 @@ export const useToastStore = create<ToastState>((set) => ({
 
     set((state) => ({ toasts: [...state.toasts, toast] }));
 
-    setTimeout(() => {
+    const timeoutId = setTimeout(() => {
+      timeoutIds.delete(id);
       set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
     }, ms);
+    timeoutIds.set(id, timeoutId);
   },
 
   removeToast: (id) => {
+    const timeoutId = timeoutIds.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutIds.delete(id);
+    }
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
   },
 }));

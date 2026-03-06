@@ -29,11 +29,6 @@ interface PostsState {
   quotePost: (postId: string, content: string, image?: File | null) => Promise<Post | null>;
   // Pagination
   resetPagination: () => void;
-  // Selectors (kept for compatibility)
-  getPostById: (postId: string) => Post | undefined;
-  getPostsByTag: (tag: string) => Post[];
-  getPostsByUser: (userId: string) => Post[];
-  getLikedPosts: (userId: string) => Post[];
 }
 
 export const usePostsStore = create<PostsState>((set, get) => ({
@@ -146,27 +141,44 @@ export const usePostsStore = create<PostsState>((set, get) => ({
   },
 
   toggleBookmark: async (postId: string) => {
-    const post = get().posts.find((p) => p.id === postId);
+    let post = get().posts.find((p) => p.id === postId);
+    if (!post) {
+      const wrapper = get().posts.find((p) => p.originalPost?.id === postId);
+      if (wrapper?.originalPost) {
+        post = wrapper.originalPost;
+      }
+    }
     if (!post) return;
-    // Optimistic update
-    set((state) => ({
-      posts: state.posts.map((p) =>
-        p.id === postId ? { ...p, isBookmarked: !p.isBookmarked } : p,
-      ),
-    }));
+
+    const wasBookmarked = post.isBookmarked;
+
+    const applyBookmarkState = (bookmarked: boolean) => {
+      set((state) => ({
+        posts: state.posts.map((p) => {
+          if (p.id === postId) {
+            return { ...p, isBookmarked: bookmarked };
+          }
+          if (p.originalPost?.id === postId) {
+            return {
+              ...p,
+              originalPost: { ...p.originalPost, isBookmarked: bookmarked },
+            };
+          }
+          return p;
+        }),
+      }));
+    };
+
+    applyBookmarkState(!wasBookmarked);
+
     try {
-      if (post.isBookmarked) {
+      if (wasBookmarked) {
         await bookmarksAPI.unbookmarkPost(postId);
       } else {
         await bookmarksAPI.bookmarkPost(postId);
       }
     } catch {
-      // Revert on error
-      set((state) => ({
-        posts: state.posts.map((p) =>
-          p.id === postId ? { ...p, isBookmarked: post.isBookmarked } : p,
-        ),
-      }));
+      applyBookmarkState(wasBookmarked);
     }
   },
 
@@ -180,20 +192,41 @@ export const usePostsStore = create<PostsState>((set, get) => ({
   },
 
   toggleRepost: async (postId: string) => {
-    const post = get().posts.find((p) => p.id === postId);
+    let post = get().posts.find((p) => p.id === postId);
+    if (!post) {
+      const wrapper = get().posts.find((p) => p.originalPost?.id === postId);
+      if (wrapper?.originalPost) {
+        post = wrapper.originalPost;
+      }
+    }
     if (!post) return;
-    // Optimistic update
-    set((state) => ({
-      posts: state.posts.map((p) =>
-        p.id === postId
-          ? { ...p, isReposted: !p.isReposted, repostCount: p.isReposted ? p.repostCount - 1 : p.repostCount + 1 }
-          : p,
-      ),
-    }));
+
+    const wasReposted = post.isReposted;
+    const oldCount = post.repostCount;
+
+    const applyRepostState = (reposted: boolean, count: number) => {
+      set((state) => ({
+        posts: state.posts.map((p) => {
+          if (p.id === postId) {
+            return { ...p, isReposted: reposted, repostCount: count };
+          }
+          if (p.originalPost?.id === postId) {
+            return {
+              ...p,
+              originalPost: { ...p.originalPost, isReposted: reposted, repostCount: count },
+            };
+          }
+          return p;
+        }),
+      }));
+    };
+
+    applyRepostState(!wasReposted, wasReposted ? oldCount - 1 : oldCount + 1);
+
     try {
-      if (post.isReposted) {
+      if (wasReposted) {
         await repostsAPI.unrepost(postId);
-        // Remove the repost-type post entry from state so the card disappears immediately
+        // Remove the repost-type wrapper from state so the card disappears immediately
         set((state) => ({
           posts: state.posts.filter(
             (p) => !(p.postType === 'repost' && p.originalPost?.id === postId),
@@ -203,14 +236,7 @@ export const usePostsStore = create<PostsState>((set, get) => ({
         await repostsAPI.repost(postId);
       }
     } catch {
-      // Revert on error
-      set((state) => ({
-        posts: state.posts.map((p) =>
-          p.id === postId
-            ? { ...p, isReposted: post.isReposted, repostCount: post.repostCount }
-            : p,
-        ),
-      }));
+      applyRepostState(wasReposted, oldCount);
       useToastStore.getState().addToast('Failed to update repost', 'error');
     }
   },
@@ -229,10 +255,5 @@ export const usePostsStore = create<PostsState>((set, get) => ({
   },
 
   resetPagination: () => set({ posts: [], hasMore: true, currentPage: 1, error: null }),
-
-  getPostById:(postId: string) => get().posts.find((p) => p.id === postId),
-  getPostsByTag: (tag: string) => get().posts.filter((p) => p.tags.includes(tag.toLowerCase())),
-  getPostsByUser: (userId: string) => get().posts.filter((p) => p.author.id === userId),
-  getLikedPosts: () => get().posts.filter((p) => p.isLiked),
 }));
 

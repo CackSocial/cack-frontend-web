@@ -29,9 +29,11 @@ const getStoredUser = (): User | null => {
   }
 };
 
+const _cachedUser = getStoredUser();
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: getStoredUser(),
-  isAuthenticated: !!getStoredUser(),
+  user: _cachedUser,
+  isAuthenticated: !!_cachedUser,
   isLoading: false,
   error: null,
 

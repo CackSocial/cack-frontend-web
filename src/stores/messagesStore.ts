@@ -57,8 +57,11 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
         const partner = state.conversations.find(
           (c) => c.participant.id === msg.sender_id || c.participant.id === msg.receiver_id,
         );
-        conversationKey = partner?.participant.username ?? msg.sender_id;
+        conversationKey = partner?.participant.username ?? null;
       }
+
+      // If we can't resolve a username key, skip — the message will appear on next fetch
+      if (!conversationKey) return;
 
       set((prev) => {
         const existing = prev.messages[conversationKey] ?? [];
@@ -72,7 +75,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
               ...c,
               lastMessage: message,
               updatedAt: message.createdAt,
-              unreadCount: prev.activeConversationId ? c.unreadCount : c.unreadCount + 1,
+              unreadCount: prev.activeConversationId === c.participant.username ? c.unreadCount : c.unreadCount + 1,
             };
           }
           return c;
@@ -103,6 +106,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       set({ conversations, isLoadingConversations: false });
     } catch {
       set({ isLoadingConversations: false });
+      useToastStore.getState().addToast('Failed to load conversations', 'error');
     }
   },
 
@@ -117,6 +121,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
       }));
     } catch {
       set({ isLoadingMessages: false });
+      useToastStore.getState().addToast('Failed to load messages', 'error');
     }
   },
 
@@ -128,11 +133,12 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   sendMessage: async (conversationId: string, content: string, image?: File | null) => {
     try {
       const res = await messagesAPI.sendMessage(conversationId, content, image);
-      const msg = mapMessage(res.data!);
+      if (!res.data) throw new Error('No data returned');
+      const msg = mapMessage(res.data);
       set((state) => {
         const existing = state.messages[conversationId] ?? [];
         const conversations = state.conversations.map((c) =>
-          c.id === conversationId
+          c.participant.username === conversationId
             ? { ...c, lastMessage: msg, updatedAt: msg.createdAt }
             : c,
         );
@@ -153,7 +159,7 @@ export const useMessagesStore = create<MessagesState>((set, get) => ({
   markAsRead: (conversationId: string) =>
     set((state) => ({
       conversations: state.conversations.map((c) =>
-        c.id === conversationId ? { ...c, unreadCount: 0 } : c,
+        c.participant.username === conversationId ? { ...c, unreadCount: 0 } : c,
       ),
       messages: {
         ...state.messages,

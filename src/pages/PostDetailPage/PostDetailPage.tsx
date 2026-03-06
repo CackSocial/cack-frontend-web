@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, Heart, MessageCircle, Share2, Bookmark, Trash2 } from 'lucide-react';
+import { ArrowLeft, Heart, MessageCircle, Share2, Bookmark, Trash2, Repeat2 } from 'lucide-react';
 import { Avatar, Button, ConfirmDialog, ImageViewer, MentionAutocomplete } from '../../components/common';
+import { PostComposer } from '../../components/post/PostComposer';
 import { CommentThread } from '../../components/post/CommentThread';
 import { usePostsStore } from '../../stores/postsStore';
 import { useAuthStore } from '../../stores/authStore';
+import { useToastStore } from '../../stores/toastStore';
 import * as postsAPI from '../../api/posts';
 import * as commentsAPI from '../../api/comments';
+import * as likesAPI from '../../api/likes';
+import * as bookmarksAPI from '../../api/bookmarks';
+import * as repostsAPI from '../../api/reposts';
 import { mapPost, mapComment } from '../../api/mappers';
 import { formatFullDate, formatCount } from '../../utils/format';
 import { renderTaggedContent } from '../../utils/renderTaggedContent';
@@ -17,8 +22,6 @@ import styles from './PostDetailPage.module.css';
 export function PostDetailPage() {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
-  const toggleLike = usePostsStore((s) => s.toggleLike);
-  const toggleBookmark = usePostsStore((s) => s.toggleBookmark);
   const deletePost = usePostsStore((s) => s.deletePost);
   const user = useAuthStore((s) => s.user);
   const [post, setPost] = useState<Post | null>(null);
@@ -29,33 +32,104 @@ export function PostDetailPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [quoting, setQuoting] = useState(false);
   const [commentCursorPos, setCommentCursorPos] = useState(0);
-  const [commentMentionOpen, setCommentMentionOpen] = useState(true);
+  const [commentMentionOpen, setCommentMentionOpen] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    return () => clearTimeout(copiedTimerRef.current);
+  }, []);
+
+  const refreshPost = useCallback(async (id: string) => {
+    try {
+      const res = await postsAPI.getPost(id);
+      if (res.data) setPost(mapPost(res.data));
+    } catch {
+      // keep current state if refresh fails
+    }
+  }, []);
 
   useEffect(() => {
     if (!postId) return;
     postsAPI.getPost(postId)
-      .then((res) => setPost(mapPost(res.data!)))
+      .then((res) => {
+        if (res.data) setPost(mapPost(res.data));
+        else setNotFound(true);
+      })
       .catch(() => setNotFound(true));
 
     commentsAPI.getComments(postId)
       .then((res) => setComments(res.data.map(mapComment)));
   }, [postId]);
 
+  // Helper: get the display post (unwrap reposts) and update the right part of state
+  const getDisplayId = () => {
+    if (!post) return null;
+    return post.postType === 'repost' && post.originalPost ? post.originalPost.id : post.id;
+  };
+
+  const updateDisplayState = (updater: (p: Post) => Post) => {
+    setPost((prev) => {
+      if (!prev) return prev;
+      if (prev.postType === 'repost' && prev.originalPost) {
+        return { ...prev, originalPost: updater(prev.originalPost) };
+      }
+      return updater(prev);
+    });
+  };
+
   const handleLike = async () => {
-    if (!post) return;
-    await toggleLike(post.id);
-    // Refresh post to get accurate counts
-    const res = await postsAPI.getPost(post.id);
-    setPost(mapPost(res.data!));
+    const displayId = getDisplayId();
+    if (!post || !displayId) return;
+    const dp = post.postType === 'repost' && post.originalPost ? post.originalPost : post;
+    const wasLiked = dp.isLiked;
+    const oldCount = dp.likesCount;
+    updateDisplayState((p) => ({ ...p, isLiked: !wasLiked, likesCount: wasLiked ? oldCount - 1 : oldCount + 1 }));
+    try {
+      if (wasLiked) await likesAPI.unlikePost(displayId);
+      else await likesAPI.likePost(displayId);
+    } catch {
+      updateDisplayState((p) => ({ ...p, isLiked: wasLiked, likesCount: oldCount }));
+      useToastStore.getState().addToast('Failed to update like', 'error');
+    }
   };
 
   const handleBookmark = async () => {
-    if (!post) return;
-    await toggleBookmark(post.id);
-    const res = await postsAPI.getPost(post.id);
-    setPost(mapPost(res.data!));
+    const displayId = getDisplayId();
+    if (!post || !displayId) return;
+    const dp = post.postType === 'repost' && post.originalPost ? post.originalPost : post;
+    const wasBookmarked = dp.isBookmarked;
+    updateDisplayState((p) => ({ ...p, isBookmarked: !wasBookmarked }));
+    try {
+      if (wasBookmarked) await bookmarksAPI.unbookmarkPost(displayId);
+      else await bookmarksAPI.bookmarkPost(displayId);
+    } catch {
+      updateDisplayState((p) => ({ ...p, isBookmarked: wasBookmarked }));
+      useToastStore.getState().addToast('Failed to update bookmark', 'error');
+    }
+  };
+
+  const handleRepost = async () => {
+    const displayId = getDisplayId();
+    if (!post || !displayId) return;
+    const dp = post.postType === 'repost' && post.originalPost ? post.originalPost : post;
+    const wasReposted = dp.isReposted;
+    const oldCount = dp.repostCount;
+    updateDisplayState((p) => ({ ...p, isReposted: !wasReposted, repostCount: wasReposted ? oldCount - 1 : oldCount + 1 }));
+    try {
+      if (wasReposted) await repostsAPI.unrepost(displayId);
+      else await repostsAPI.repost(displayId);
+    } catch {
+      updateDisplayState((p) => ({ ...p, isReposted: wasReposted, repostCount: oldCount }));
+      useToastStore.getState().addToast('Failed to update repost', 'error');
+    }
+  };
+
+  const handleQuoteDone = () => {
+    setQuoting(false);
+    if (post) refreshPost(post.id);
   };
 
   const handleShare = useCallback(async () => {
@@ -63,7 +137,8 @@ export function PostDetailPage() {
     const ok = await sharePost(post.id);
     if (ok) {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => setCopied(false), 2000);
     }
   }, [post]);
 
@@ -80,10 +155,13 @@ export function PostDetailPage() {
     setSubmitting(true);
     try {
       const res = await commentsAPI.createComment(postId, commentText.trim());
-      const newComment = mapComment(res.data!);
+      if (!res.data) throw new Error('No data returned');
+      const newComment = mapComment(res.data);
       setComments((prev) => [...prev, newComment]);
       setCommentText('');
       setPost((p) => p ? { ...p, commentsCount: p.commentsCount + 1 } : p);
+    } catch {
+      useToastStore.getState().addToast('Failed to post comment', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -116,18 +194,29 @@ export function PostDetailPage() {
     [commentText, commentCursorPos],
   );
 
-  if (notFound || (!post && !notFound)) {
+  if (notFound) {
     return (
       <div className={styles.page}>
         <button className={styles.backBtn} onClick={() => navigate(-1)}>
           <ArrowLeft size={18} /> Back
         </button>
-        {notFound && <div className={styles.notFound}>Post not found</div>}
+        <div className={styles.notFound}>Post not found</div>
       </div>
     );
   }
 
-  if (!post) return null;
+  if (!post) {
+    return (
+      <div className={styles.page}>
+        <button className={styles.backBtn} onClick={() => navigate(-1)}>
+          <ArrowLeft size={18} /> Back
+        </button>
+      </div>
+    );
+  }
+
+  // For reposts, display the original post's content (mirrors PostCard logic)
+  const displayPost = post.postType === 'repost' && post.originalPost ? post.originalPost : post;
 
   return (
     <div className={styles.page}>
@@ -136,34 +225,44 @@ export function PostDetailPage() {
       </button>
 
       <div className={styles.postSection}>
+        {post.postType === 'repost' && (
+          <div className={styles.repostBanner}>
+            <Repeat2 size={14} />
+            <Link to={`/profile/${post.author.username}`} className={styles.repostAuthorLink}>
+              {post.author.displayName}
+            </Link>
+            {' '}reposted
+          </div>
+        )}
+
         <div className={styles.postHeader}>
-          <Link to={`/profile/${post.author.username}`}>
+          <Link to={`/profile/${displayPost.author.username}`}>
             <Avatar
-              src={post.author.avatarUrl}
-              alt={post.author.displayName}
+              src={displayPost.author.avatarUrl}
+              alt={displayPost.author.displayName}
               size="lg"
             />
           </Link>
           <div className={styles.authorInfo}>
             <Link
-              to={`/profile/${post.author.username}`}
+              to={`/profile/${displayPost.author.username}`}
               className={styles.authorName}
             >
-              {post.author.displayName}
+              {displayPost.author.displayName}
             </Link>
             <div className={styles.authorHandle}>
-              @{post.author.username}
+              @{displayPost.author.username}
             </div>
           </div>
         </div>
 
         <div className={styles.postContent}>
-          {renderTaggedContent(post.content, styles.tag, undefined, styles.mention)}
+          {renderTaggedContent(displayPost.content, styles.tag, undefined, styles.mention)}
         </div>
 
-        {post.imageUrl && (
+        {displayPost.imageUrl && (
           <img
-            src={post.imageUrl}
+            src={displayPost.imageUrl}
             alt="Post attachment"
             className={styles.postImage}
             onClick={() => setViewerOpen(true)}
@@ -171,8 +270,32 @@ export function PostDetailPage() {
           />
         )}
 
+        {post.postType === 'quote' && post.originalPost && (
+          <div className={styles.quotedPost}>
+            <div className={styles.quotedHeader}>
+              <Link
+                to={`/profile/${post.originalPost.author.username}`}
+                className={styles.authorName}
+              >
+                {post.originalPost.author.displayName}
+              </Link>
+              <span className={styles.authorHandle}>@{post.originalPost.author.username}</span>
+            </div>
+            <div className={styles.quotedContent}>
+              {renderTaggedContent(post.originalPost.content, styles.tag, undefined, styles.mention)}
+            </div>
+            {post.originalPost.imageUrl && (
+              <img
+                src={post.originalPost.imageUrl}
+                alt="Original post attachment"
+                className={styles.quotedImage}
+              />
+            )}
+          </div>
+        )}
+
         <div className={styles.postMeta}>
-          {formatFullDate(post.createdAt)}
+          {formatFullDate(displayPost.createdAt)}
           {user?.id === post.author.id && (
             <button
               className={styles.deleteBtn}
@@ -191,12 +314,12 @@ export function PostDetailPage() {
           >
             <Heart
               size={18}
-              fill={post.isLiked ? 'var(--color-like)' : 'none'}
-              color={post.isLiked ? 'var(--color-like)' : 'currentColor'}
+              fill={displayPost.isLiked ? 'var(--color-like)' : 'none'}
+              color={displayPost.isLiked ? 'var(--color-like)' : 'currentColor'}
               className={styles.statIcon}
             />
             <span className={styles.statCount}>
-              {formatCount(post.likesCount)}
+              {formatCount(displayPost.likesCount)}
             </span>{' '}
             likes
           </button>
@@ -206,20 +329,44 @@ export function PostDetailPage() {
               className={styles.statIcon}
             />
             <span className={styles.statCount}>
-              {formatCount(post.commentsCount)}
+              {formatCount(displayPost.commentsCount)}
             </span>{' '}
             comments
           </span>
           <button
-            className={`${styles.stat} ${styles.statBtn} ${post.isBookmarked ? styles.statBookmarked : ''}`}
+            className={`${styles.stat} ${styles.statBtn} ${displayPost.isReposted ? styles.statReposted : ''}`}
+            onClick={handleRepost}
+            aria-label={displayPost.isReposted ? 'Undo repost' : 'Repost'}
+          >
+            <Repeat2
+              size={18}
+              className={styles.statIcon}
+            />
+            <span className={styles.statCount}>
+              {formatCount(displayPost.repostCount)}
+            </span>{' '}
+            reposts
+          </button>
+          <button
+            className={`${styles.stat} ${styles.statBtn}`}
+            onClick={() => setQuoting((q) => !q)}
+          >
+            <MessageCircle
+              size={18}
+              className={styles.statIcon}
+            />
+            Quote
+          </button>
+          <button
+            className={`${styles.stat} ${styles.statBtn} ${displayPost.isBookmarked ? styles.statBookmarked : ''}`}
             onClick={handleBookmark}
           >
             <Bookmark
               size={18}
-              fill={post.isBookmarked ? 'currentColor' : 'none'}
+              fill={displayPost.isBookmarked ? 'currentColor' : 'none'}
               className={styles.statIcon}
             />
-            {post.isBookmarked ? 'Saved' : 'Save'}
+            {displayPost.isBookmarked ? 'Saved' : 'Save'}
           </button>
           <button
             className={`${styles.stat} ${styles.statBtn}`}
@@ -232,6 +379,12 @@ export function PostDetailPage() {
             {copied ? 'Copied!' : 'Share'}
           </button>
         </div>
+
+        {quoting && (
+          <div className={styles.quoteComposer}>
+            <PostComposer quotePost={displayPost} onClearQuote={handleQuoteDone} />
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
@@ -243,9 +396,9 @@ export function PostDetailPage() {
         confirmLabel="Delete"
       />
 
-      {post.imageUrl && (
+      {displayPost.imageUrl && (
         <ImageViewer
-          src={post.imageUrl}
+          src={displayPost.imageUrl}
           alt="Post attachment"
           isOpen={viewerOpen}
           onClose={() => setViewerOpen(false)}

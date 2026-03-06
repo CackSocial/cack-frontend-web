@@ -24,7 +24,7 @@ export function PostComposer({ quotePost: quotingPost, onClearQuote }: PostCompo
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cursorPos, setCursorPos] = useState(0);
-  const [mentionOpen, setMentionOpen] = useState(true);
+  const [mentionOpen, setMentionOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -113,8 +113,11 @@ export function PostComposer({ quotePost: quotingPost, onClearQuote }: PostCompo
               value={content}
               onChange={(e) => {
                 setContent(e.target.value);
-                setCursorPos(e.target.selectionStart);
-                setMentionOpen(true);
+                const pos = e.target.selectionStart;
+                setCursorPos(pos);
+                // Only open mention dropdown when @ pattern is being typed
+                const before = e.target.value.slice(0, pos);
+                setMentionOpen(/@\w*$/.test(before));
               }}
               onSelect={updateCursorPos}
               onClick={updateCursorPos}

@@ -77,7 +77,14 @@ async function request<T>(
 
   if (!res.ok) {
     const msg = (body as APIResponse<T>).message ?? 'Request failed';
-    if (res.status !== 401) {
+    if (res.status === 401) {
+      // Expired or invalid token — clear auth state and redirect to login
+      localStorage.removeItem('sc-token');
+      localStorage.removeItem('sc-user');
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = '/login';
+      }
+    } else {
       useToastStore.getState().addToast(msg, 'error');
     }
     throw new APIError(res.status, msg);

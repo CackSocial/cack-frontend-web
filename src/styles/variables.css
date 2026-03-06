@@ -144,4 +144,10 @@
   --z-modal-backdrop: 300;
   --z-modal: 400;
   --z-toast: 500;
+  --z-image-viewer: 600;
+
+  /* Semantic notification colors */
+  --color-info: #3b82f6;
+  --color-mention: #a855f7;
+  --color-repost: #0ea5e9;
 }

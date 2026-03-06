@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Notification } from '../types';
 import * as notificationsAPI from '../api/notifications';
 import { mapNotification } from '../api/mappers';
+import { useToastStore } from './toastStore';
 
 interface NotificationsState {
   notifications: Notification[];
@@ -33,6 +34,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       }));
     } catch {
       set({ isLoading: false });
+      useToastStore.getState().addToast('Failed to load notifications', 'error');
     }
   },
 
@@ -47,9 +49,13 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     try {
       await notificationsAPI.markAsRead(id);
     } catch {
-      // Revert on error
-      get().fetchNotifications();
-      get().fetchUnreadCount();
+      // Revert on error — refetch to get accurate state
+      try {
+        await get().fetchNotifications();
+        await get().fetchUnreadCount();
+      } catch {
+        // Recovery fetch already shows its own toast
+      }
     }
   },
 
@@ -62,8 +68,13 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     try {
       await notificationsAPI.markAllAsRead();
     } catch {
-      get().fetchNotifications();
-      get().fetchUnreadCount();
+      // Revert on error — refetch to get accurate state
+      try {
+        await get().fetchNotifications();
+        await get().fetchUnreadCount();
+      } catch {
+        // Recovery fetch already shows its own toast
+      }
     }
   },
 
@@ -72,7 +83,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       const res = await notificationsAPI.getUnreadCount();
       set({ unreadCount: res.data?.count ?? 0 });
     } catch {
-      // ignore
+      // Non-critical — silently fail for badge count
     }
   },
 

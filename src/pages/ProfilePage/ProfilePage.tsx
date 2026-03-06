@@ -4,14 +4,16 @@ import { ArrowLeft, Mail } from 'lucide-react';
 import { Avatar, Button } from '../../components/common';
 import { PostCard } from '../../components/post';
 import { useAuthStore } from '../../stores/authStore';
+import { useToastStore } from '../../stores/toastStore';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import * as usersAPI from '../../api/users';
 import * as followsAPI from '../../api/follows';
 import * as likesAPI from '../../api/likes';
+import * as bookmarksAPI from '../../api/bookmarks';
+import * as repostsAPI from '../../api/reposts';
+import * as postsAPI from '../../api/posts';
 import { mapUser, mapPost } from '../../api/mappers';
 import { formatCount } from '../../utils/format';
-import * as postsAPI from '../../api/posts';
-import { mapPost as mapPostLocal } from '../../api/mappers';
 import type { User, Post } from '../../types';
 import styles from './ProfilePage.module.css';
 
@@ -59,7 +61,7 @@ export function ProfilePage() {
         const user = mapUser(profileRes.data!);
         setProfileUser(user);
         setFollowing(user.isFollowing ?? false);
-        const posts = postsRes.data.map(mapPostLocal);
+        const posts = postsRes.data.map(mapPost);
         setUserPosts(posts);
         setPostsHasMore(posts.length >= POSTS_LIMIT);
       })
@@ -90,7 +92,7 @@ export function ProfilePage() {
     setIsLoadingMorePosts(true);
     try {
       const res = await postsAPI.getUserPosts(username, nextPage, POSTS_LIMIT);
-      const newPosts = res.data.map(mapPostLocal);
+      const newPosts = res.data.map(mapPost);
       setUserPosts((prev) => [...prev, ...newPosts]);
       const hasMore = newPosts.length >= POSTS_LIMIT;
       setPostsHasMore(hasMore);
@@ -140,6 +142,92 @@ export function ProfilePage() {
     resetLikesScroll();
   }, [username, resetPostsScroll, resetLikesScroll]);
 
+  const updateDisplayPost = useCallback(
+    (postId: string, updater: (p: Post) => Post) => {
+      const mapWithNesting = (p: Post): Post => {
+        if (p.id === postId) return updater(p);
+        if (p.originalPost?.id === postId) {
+          return { ...p, originalPost: updater(p.originalPost) };
+        }
+        return p;
+      };
+      setUserPosts((prev) => prev.map(mapWithNesting));
+      setLikedPosts((prev) => prev.map(mapWithNesting));
+    },
+    [],
+  );
+
+  const findDisplayPost = useCallback(
+    (postId: string): Post | undefined => {
+      const all = [...userPosts, ...likedPosts];
+      const direct = all.find((p) => p.id === postId);
+      if (direct) return direct;
+      return all.find((p) => p.originalPost?.id === postId)?.originalPost ?? undefined;
+    },
+    [userPosts, likedPosts],
+  );
+
+  const handleLike = useCallback(
+    async (postId: string) => {
+      const post = findDisplayPost(postId);
+      if (!post) return;
+      const wasLiked = post.isLiked;
+      const oldCount = post.likesCount;
+      updateDisplayPost(postId, (p) => ({
+        ...p,
+        isLiked: !wasLiked,
+        likesCount: wasLiked ? oldCount - 1 : oldCount + 1,
+      }));
+      try {
+        if (wasLiked) await likesAPI.unlikePost(postId);
+        else await likesAPI.likePost(postId);
+      } catch {
+        updateDisplayPost(postId, (p) => ({ ...p, isLiked: wasLiked, likesCount: oldCount }));
+        useToastStore.getState().addToast('Failed to update like', 'error');
+      }
+    },
+    [findDisplayPost, updateDisplayPost],
+  );
+
+  const handleBookmark = useCallback(
+    async (postId: string) => {
+      const post = findDisplayPost(postId);
+      if (!post) return;
+      const wasBookmarked = post.isBookmarked;
+      updateDisplayPost(postId, (p) => ({ ...p, isBookmarked: !wasBookmarked }));
+      try {
+        if (wasBookmarked) await bookmarksAPI.unbookmarkPost(postId);
+        else await bookmarksAPI.bookmarkPost(postId);
+      } catch {
+        updateDisplayPost(postId, (p) => ({ ...p, isBookmarked: wasBookmarked }));
+        useToastStore.getState().addToast('Failed to update bookmark', 'error');
+      }
+    },
+    [findDisplayPost, updateDisplayPost],
+  );
+
+  const handleRepost = useCallback(
+    async (postId: string) => {
+      const post = findDisplayPost(postId);
+      if (!post) return;
+      const wasReposted = post.isReposted;
+      const oldCount = post.repostCount;
+      updateDisplayPost(postId, (p) => ({
+        ...p,
+        isReposted: !wasReposted,
+        repostCount: wasReposted ? oldCount - 1 : oldCount + 1,
+      }));
+      try {
+        if (wasReposted) await repostsAPI.unrepost(postId);
+        else await repostsAPI.repost(postId);
+      } catch {
+        updateDisplayPost(postId, (p) => ({ ...p, isReposted: wasReposted, repostCount: oldCount }));
+        useToastStore.getState().addToast('Failed to update repost', 'error');
+      }
+    },
+    [findDisplayPost, updateDisplayPost],
+  );
+
   const handleFollowToggle = async () => {
     if (!username) return;
     try {
@@ -153,7 +241,7 @@ export function ProfilePage() {
         setProfileUser((u) => u ? { ...u, followersCount: u.followersCount + 1 } : u);
       }
     } catch {
-      // ignore
+      useToastStore.getState().addToast('Failed to update follow', 'error');
     }
   };
 
@@ -256,7 +344,14 @@ export function ProfilePage() {
         {displayPosts.length > 0 ? (
           <>
             {displayPosts.map((post, i) => (
-              <PostCard key={post.id} post={post} index={i} />
+              <PostCard
+                key={post.id}
+                post={post}
+                index={i}
+                onLike={handleLike}
+                onBookmark={handleBookmark}
+                onRepost={handleRepost}
+              />
             ))}
             {isLoadingMore && (
               <div className={styles.loadingMore}>Loading more…</div>

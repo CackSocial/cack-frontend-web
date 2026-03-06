@@ -91,7 +91,11 @@ export function MessagesPage() {
                 {conv.lastMessage && (
                   <p className={styles.conversationPreview}>
                     {conv.lastMessage.senderId === currentUser?.id ? 'You: ' : ''}
-                    {truncate(conv.lastMessage.content, 60)}
+                    {conv.lastMessage.content
+                      ? truncate(conv.lastMessage.content, 60)
+                      : conv.lastMessage.imageUrl
+                        ? '📷 Photo'
+                        : ''}
                   </p>
                 )}
               </div>

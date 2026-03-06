@@ -2,7 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Bookmark as BookmarkIcon } from 'lucide-react';
 import { PostCard } from '../../components/post/PostCard';
 import { usePostsStore } from '../../stores/postsStore';
+import { useToastStore } from '../../stores/toastStore';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
+import * as likesAPI from '../../api/likes';
+import * as bookmarksAPI from '../../api/bookmarks';
+import * as repostsAPI from '../../api/reposts';
 import type { Post } from '../../types';
 import styles from './BookmarksPage.module.css';
 
@@ -53,6 +57,90 @@ export function BookmarksPage() {
     hasMore,
   });
 
+  const updatePost = useCallback(
+    (postId: string, updater: (p: Post) => Post) =>
+      setBookmarks((prev) =>
+        prev.map((p) => {
+          if (p.id === postId) return updater(p);
+          if (p.originalPost?.id === postId) {
+            return { ...p, originalPost: updater(p.originalPost) };
+          }
+          return p;
+        }),
+      ),
+    [],
+  );
+
+  const findPost = useCallback(
+    (postId: string): Post | undefined => {
+      const direct = bookmarks.find((p) => p.id === postId);
+      if (direct) return direct;
+      return bookmarks.find((p) => p.originalPost?.id === postId)?.originalPost ?? undefined;
+    },
+    [bookmarks],
+  );
+
+  const handleLike = useCallback(
+    async (postId: string) => {
+      const post = findPost(postId);
+      if (!post) return;
+      const wasLiked = post.isLiked;
+      const oldCount = post.likesCount;
+      updatePost(postId, (p) => ({
+        ...p,
+        isLiked: !wasLiked,
+        likesCount: wasLiked ? oldCount - 1 : oldCount + 1,
+      }));
+      try {
+        if (wasLiked) await likesAPI.unlikePost(postId);
+        else await likesAPI.likePost(postId);
+      } catch {
+        updatePost(postId, (p) => ({ ...p, isLiked: wasLiked, likesCount: oldCount }));
+        useToastStore.getState().addToast('Failed to update like', 'error');
+      }
+    },
+    [findPost, updatePost],
+  );
+
+  const handleBookmark = useCallback(
+    async (postId: string) => {
+      const post = findPost(postId);
+      if (!post) return;
+      const wasBookmarked = post.isBookmarked;
+      updatePost(postId, (p) => ({ ...p, isBookmarked: !wasBookmarked }));
+      try {
+        if (wasBookmarked) await bookmarksAPI.unbookmarkPost(postId);
+        else await bookmarksAPI.bookmarkPost(postId);
+      } catch {
+        updatePost(postId, (p) => ({ ...p, isBookmarked: wasBookmarked }));
+        useToastStore.getState().addToast('Failed to update bookmark', 'error');
+      }
+    },
+    [findPost, updatePost],
+  );
+
+  const handleRepost = useCallback(
+    async (postId: string) => {
+      const post = findPost(postId);
+      if (!post) return;
+      const wasReposted = post.isReposted;
+      const oldCount = post.repostCount;
+      updatePost(postId, (p) => ({
+        ...p,
+        isReposted: !wasReposted,
+        repostCount: wasReposted ? oldCount - 1 : oldCount + 1,
+      }));
+      try {
+        if (wasReposted) await repostsAPI.unrepost(postId);
+        else await repostsAPI.repost(postId);
+      } catch {
+        updatePost(postId, (p) => ({ ...p, isReposted: wasReposted, repostCount: oldCount }));
+        useToastStore.getState().addToast('Failed to update repost', 'error');
+      }
+    },
+    [findPost, updatePost],
+  );
+
   return (
     <div className={styles.page}>
       <h1 className={styles.title}>Bookmarks</h1>
@@ -74,7 +162,14 @@ export function BookmarksPage() {
       {!isLoading && bookmarks.length > 0 && (
         <div className={styles.list}>
           {bookmarks.map((post, i) => (
-            <PostCard key={post.id} post={post} index={i} />
+            <PostCard
+              key={post.id}
+              post={post}
+              index={i}
+              onLike={handleLike}
+              onBookmark={handleBookmark}
+              onRepost={handleRepost}
+            />
           ))}
           {isLoadingMore && (
             <div className={styles.loadingMore}>Loading more…</div>

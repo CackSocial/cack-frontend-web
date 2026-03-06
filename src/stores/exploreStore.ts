@@ -197,52 +197,73 @@ export const useExploreStore = create<ExploreState>((set, get) => ({
   toggleBookmarkExplore: async (postId: string, feed: 'popular' | 'discover') => {
     const key = feed === 'popular' ? 'popularPosts' : 'discoverPosts';
     const posts = get()[key];
-    const post = posts.find((p) => p.id === postId);
+    const post = posts.find((p) => p.id === postId) ??
+      posts.find((p) => p.originalPost?.id === postId)?.originalPost;
     if (!post) return;
 
-    set((state) => ({
-      [key]: (state[key] as Post[]).map((p) =>
-        p.id === postId ? { ...p, isBookmarked: !p.isBookmarked } : p,
-      ),
-    } as Partial<ExploreState>));
+    const wasBookmarked = post.isBookmarked;
+
+    const applyBookmark = (bookmarked: boolean) => {
+      set((state) => ({
+        [key]: (state[key] as Post[]).map((p) => {
+          if (p.id === postId) return { ...p, isBookmarked: bookmarked };
+          if (p.originalPost?.id === postId) {
+            return { ...p, originalPost: { ...p.originalPost, isBookmarked: bookmarked } };
+          }
+          return p;
+        }),
+      } as Partial<ExploreState>));
+    };
+
+    applyBookmark(!wasBookmarked);
 
     try {
-      if (post.isBookmarked) await bookmarksAPI.unbookmarkPost(postId);
+      if (wasBookmarked) await bookmarksAPI.unbookmarkPost(postId);
       else await bookmarksAPI.bookmarkPost(postId);
     } catch {
-      set((state) => ({
-        [key]: (state[key] as Post[]).map((p) =>
-          p.id === postId ? { ...p, isBookmarked: post.isBookmarked } : p,
-        ),
-      } as Partial<ExploreState>));
+      applyBookmark(wasBookmarked);
+      useToastStore.getState().addToast('Failed to update bookmark', 'error');
     }
   },
 
   toggleRepostExplore: async (postId: string, feed: 'popular' | 'discover') => {
     const key = feed === 'popular' ? 'popularPosts' : 'discoverPosts';
     const posts = get()[key];
-    const post = posts.find((p) => p.id === postId);
+    const post = posts.find((p) => p.id === postId) ??
+      posts.find((p) => p.originalPost?.id === postId)?.originalPost;
     if (!post) return;
 
-    set((state) => ({
-      [key]: (state[key] as Post[]).map((p) =>
-        p.id === postId
-          ? { ...p, isReposted: !p.isReposted, repostCount: p.isReposted ? p.repostCount - 1 : p.repostCount + 1 }
-          : p,
-      ),
-    } as Partial<ExploreState>));
+    const wasReposted = post.isReposted;
+    const oldCount = post.repostCount;
+
+    const applyRepost = (reposted: boolean, count: number) => {
+      set((state) => ({
+        [key]: (state[key] as Post[]).map((p) => {
+          if (p.id === postId) return { ...p, isReposted: reposted, repostCount: count };
+          if (p.originalPost?.id === postId) {
+            return { ...p, originalPost: { ...p.originalPost, isReposted: reposted, repostCount: count } };
+          }
+          return p;
+        }),
+      } as Partial<ExploreState>));
+    };
+
+    applyRepost(!wasReposted, wasReposted ? oldCount - 1 : oldCount + 1);
 
     try {
-      if (post.isReposted) await repostsAPI.unrepost(postId);
-      else await repostsAPI.repost(postId);
+      if (wasReposted) {
+        await repostsAPI.unrepost(postId);
+        // Remove the repost-type wrapper from state so the card disappears
+        set((state) => ({
+          [key]: (state[key] as Post[]).filter(
+            (p) => !(p.postType === 'repost' && p.originalPost?.id === postId),
+          ),
+        } as Partial<ExploreState>));
+      } else {
+        await repostsAPI.repost(postId);
+      }
     } catch {
-      set((state) => ({
-        [key]: (state[key] as Post[]).map((p) =>
-          p.id === postId
-            ? { ...p, isReposted: post.isReposted, repostCount: post.repostCount }
-            : p,
-        ),
-      } as Partial<ExploreState>));
+      applyRepost(wasReposted, oldCount);
       useToastStore.getState().addToast('Failed to update repost', 'error');
     }
   },

@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Heart, UserPlus, MessageCircle, AtSign, Repeat2 } from 'lucide-react';
 import { Avatar } from '../../components/common';
@@ -42,16 +42,19 @@ export function NotificationsPage() {
   const markAllAsRead = useNotificationsStore((s) => s.markAllAsRead);
   const unreadCount = useNotificationsStore((s) => s.unreadCount);
   const navigate = useNavigate();
+  const pageRef = useRef(1);
 
   useEffect(() => {
+    pageRef.current = 1;
     fetchNotifications(1, 20, false);
   }, [fetchNotifications]);
 
   const loadMore = useCallback(async () => {
-    const nextPage = Math.floor(notifications.length / 20) + 1;
+    const nextPage = pageRef.current + 1;
     await fetchNotifications(nextPage, 20, true);
+    pageRef.current = nextPage;
     return hasMore;
-  }, [fetchNotifications, notifications.length, hasMore]);
+  }, [fetchNotifications, hasMore]);
 
   const { sentinelRef } = useInfiniteScroll({
     loadMore,

@@ -136,15 +136,14 @@ export function SettingsPage() {
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Account</h2>
+        <p className={styles.dangerText}>
+          Logging out will end your current session.
+        </p>
+        <Button variant="secondary" size="sm" onClick={logout}>
+          Log Out
+        </Button>
         <div className={styles.dangerZone}>
           <div className={styles.dangerTitle}>Danger Zone</div>
-          <p className={styles.dangerText}>
-            Logging out will end your current session.
-          </p>
-          <Button variant="danger" size="sm" onClick={logout}>
-            Log Out
-          </Button>
-          <div className={styles.dangerDivider} />
           <p className={styles.dangerText}>
             Permanently delete your account and all associated data. This cannot be undone.
           </p>
