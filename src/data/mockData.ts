@@ -1,4 +1,4 @@
-import type { User, Post, Comment, Tag, Message, Conversation } from '../types';
+import type { User, Comment, Tag, Message, Conversation } from '../types';
 
 /* ─── Users ─── */
 export const mockUsers: User[] = [
@@ -88,94 +88,6 @@ export const currentMockUser: User = {
   postsCount: 5,
   createdAt: '2024-06-01T10:00:00Z',
 };
-
-/* ─── Posts ─── */
-export const mockPosts: Post[] = [
-  {
-    id: 'p1',
-    author: mockUsers[0],
-    content: 'Just finished a new photo series exploring urban geometry. The way light interacts with modern architecture never ceases to amaze me. #photography #architecture #urban',
-    imageUrl: 'https://picsum.photos/seed/urban/800/600',
-    tags: ['photography', 'architecture', 'urban'],
-    likesCount: 234,
-    commentsCount: 18,
-    isLiked: false,
-    createdAt: '2025-02-27T15:30:00Z',
-  },
-  {
-    id: 'p2',
-    author: mockUsers[1],
-    content: `Hot take: the best code is the code you don't write. Spent the morning refactoring a 500-line module into 80 lines. Sometimes less really is more. #coding #cleancode`,
-    tags: ['coding', 'cleancode'],
-    likesCount: 567,
-    commentsCount: 42,
-    isLiked: true,
-    createdAt: '2025-02-27T12:00:00Z',
-  },
-  {
-    id: 'p3',
-    author: mockUsers[2],
-    content: `Chapter 14 is done. This novel has been the hardest thing I've ever written, but also the most rewarding. Every word feels earned. #writing #amwriting #novellife`,
-    tags: ['writing', 'amwriting', 'novellife'],
-    likesCount: 892,
-    commentsCount: 56,
-    isLiked: false,
-    createdAt: '2025-02-26T20:15:00Z',
-  },
-  {
-    id: 'p4',
-    author: mockUsers[3],
-    content: 'Morning routine that changed my life:\n\n5:30 -- Wake up, no snooze\n5:45 -- 20 min meditation\n6:05 -- 45 min workout\n7:00 -- Cold shower\n7:15 -- High-protein breakfast\n\nConsistency beats motivation every single time. #fitness #morning #discipline',
-    tags: ['fitness', 'morning', 'discipline'],
-    likesCount: 1203,
-    commentsCount: 89,
-    isLiked: true,
-    createdAt: '2025-02-26T06:30:00Z',
-  },
-  {
-    id: 'p5',
-    author: mockUsers[4],
-    content: `New track "Midnight Frequencies" dropping this Friday. Blending analog synths with lo-fi textures. This one's different. #music #newmusic #indie`,
-    imageUrl: 'https://picsum.photos/seed/music/800/600',
-    tags: ['music', 'newmusic', 'indie'],
-    likesCount: 345,
-    commentsCount: 27,
-    isLiked: false,
-    createdAt: '2025-02-25T22:00:00Z',
-  },
-  {
-    id: 'p6',
-    author: mockUsers[5],
-    content: `Made the most incredible mushroom risotto tonight. The secret? Patience. You can't rush a good risotto -- 18 minutes of slow stirring, one ladle at a time. #cooking #risotto #homechef`,
-    imageUrl: 'https://picsum.photos/seed/risotto/800/600',
-    tags: ['cooking', 'risotto', 'homechef'],
-    likesCount: 456,
-    commentsCount: 31,
-    isLiked: false,
-    createdAt: '2025-02-25T19:45:00Z',
-  },
-  {
-    id: 'p7',
-    author: mockUsers[0],
-    content: 'Golden hour at the pier. Some moments you just have to put the camera down and soak it in. #photography #goldenhour',
-    imageUrl: 'https://picsum.photos/seed/pier/800/600',
-    tags: ['photography', 'goldenhour'],
-    likesCount: 678,
-    commentsCount: 12,
-    isLiked: true,
-    createdAt: '2025-02-24T17:30:00Z',
-  },
-  {
-    id: 'p8',
-    author: mockUsers[1],
-    content: 'Just open-sourced my new state management library. Zero dependencies, 2kb gzipped, TypeScript-first. Would love feedback from the community! #opensource #typescript #webdev',
-    tags: ['opensource', 'typescript', 'webdev'],
-    likesCount: 1890,
-    commentsCount: 156,
-    isLiked: false,
-    createdAt: '2025-02-24T10:00:00Z',
-  },
-];
 
 /* ─── Comments ─── */
 export const mockComments: Record<string, Comment[]> = {

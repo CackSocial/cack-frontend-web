@@ -9,3 +9,4 @@ export { Badge } from './Badge';
 export { ConfirmDialog } from './ConfirmDialog';
 export { ImageViewer } from './ImageViewer';
 export { MentionAutocomplete } from './MentionAutocomplete';
+export { SuggestedUserCard } from './SuggestedUserCard';

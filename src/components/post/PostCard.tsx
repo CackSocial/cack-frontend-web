@@ -14,12 +14,18 @@ interface PostCardProps {
   post: Post;
   index?: number;
   onQuote?: (post: Post) => void;
+  onLike?: (postId: string) => void;
+  onBookmark?: (postId: string) => void;
+  onRepost?: (postId: string) => void;
 }
 
-export function PostCard({ post, index = 0, onQuote }: PostCardProps) {
-  const toggleLike = usePostsStore((s) => s.toggleLike);
-  const toggleBookmark = usePostsStore((s) => s.toggleBookmark);
-  const toggleRepost = usePostsStore((s) => s.toggleRepost);
+export function PostCard({ post, index = 0, onQuote, onLike, onBookmark, onRepost }: PostCardProps) {
+  const storeToggleLike = usePostsStore((s) => s.toggleLike);
+  const storeToggleBookmark = usePostsStore((s) => s.toggleBookmark);
+  const storeToggleRepost = usePostsStore((s) => s.toggleRepost);
+  const toggleLike = onLike ?? storeToggleLike;
+  const toggleBookmark = onBookmark ?? storeToggleBookmark;
+  const toggleRepost = onRepost ?? storeToggleRepost;
   const deletePost = usePostsStore((s) => s.deletePost);
   const currentUser = useAuthStore((s) => s.user);
   const [animating, setAnimating] = useState(false);

@@ -81,4 +81,8 @@ export interface Notification {
   createdAt: string;
 }
 
+export interface SuggestedUser extends User {
+  mutualFollowerCount: number;
+}
+
 export type Theme = 'light' | 'dark';

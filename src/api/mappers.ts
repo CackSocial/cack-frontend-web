@@ -6,8 +6,9 @@ import type {
   BackendConversationListResponse,
   BackendTagResponse,
   BackendNotificationResponse,
+  BackendSuggestedUserResponse,
 } from './types';
-import type { User, Post, Comment, Message, Conversation, Tag, Notification } from '../types';
+import type { User, Post, Comment, Message, Conversation, Tag, Notification, SuggestedUser } from '../types';
 
 /** Convert absolute image URLs (e.g. http://localhost:8080/uploads/x.jpg) to relative paths so they go through the Vite proxy. */
 function toRelativeUrl(url?: string): string | undefined {
@@ -106,5 +107,22 @@ export function mapNotification(n: BackendNotificationResponse): Notification {
     referenceType: n.reference_type,
     isRead: n.is_read,
     createdAt: n.created_at,
+  };
+}
+
+export function mapSuggestedUser(u: BackendSuggestedUserResponse): SuggestedUser {
+  return {
+    id: u.id,
+    username: u.username,
+    displayName: u.display_name,
+    bio: u.bio,
+    avatarUrl: toRelativeUrl(u.avatar_url),
+    bannerUrl: '',
+    followersCount: u.follower_count,
+    followingCount: u.following_count,
+    postsCount: 0,
+    isFollowing: false,
+    createdAt: '',
+    mutualFollowerCount: u.mutual_follower_count,
   };
 }

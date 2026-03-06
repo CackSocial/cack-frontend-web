@@ -74,3 +74,14 @@ export interface BackendNotificationResponse {
 export interface BackendUnreadCountResponse {
   count: number;
 }
+
+export interface BackendSuggestedUserResponse {
+  id: string;
+  username: string;
+  display_name: string;
+  bio: string;
+  avatar_url: string;
+  follower_count: number;
+  following_count: number;
+  mutual_follower_count: number;
+}
