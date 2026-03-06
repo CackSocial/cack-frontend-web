@@ -37,14 +37,17 @@ export function PostCard({ post, index = 0, onQuote }: PostCardProps) {
     };
   }, []);
 
+  // For reposts, display the original post's content
+  const displayPost = post.postType === 'repost' && post.originalPost ? post.originalPost : post;
+
   const handleLike = useCallback(() => {
-    toggleLike(post.id);
-    if (!post.isLiked) {
+    toggleLike(displayPost.id);
+    if (!displayPost.isLiked) {
       setAnimating(true);
       clearTimeout(animationTimer.current);
       animationTimer.current = setTimeout(() => setAnimating(false), 600);
     }
-  }, [toggleLike, post.id, post.isLiked]);
+  }, [toggleLike, displayPost.id, displayPost.isLiked]);
 
   const handleShare = useCallback(async () => {
     const ok = await sharePost(post.id);
@@ -61,9 +64,6 @@ export function PostCard({ post, index = 0, onQuote }: PostCardProps) {
   }, [deletePost, post.id]);
 
   const isOwner = currentUser?.id === post.author.id;
-
-  // For reposts, display the original post's content
-  const displayPost = post.postType === 'repost' && post.originalPost ? post.originalPost : post;
 
   return (
     <article

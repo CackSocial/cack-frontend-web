@@ -140,4 +140,29 @@ describe('PostCard', () => {
     renderCard({ ...mockPost, isBookmarked: true });
     expect(screen.getByLabelText('Remove bookmark')).toBeInTheDocument();
   });
+
+  it('calls toggleLike with original post id when liking a repost', async () => {
+    const repost: Post = {
+      ...mockPost,
+      id: 'repost-1',
+      postType: 'repost',
+      originalPost: {
+        ...mockPost,
+        id: 'original-1',
+        author: {
+          id: 'orig-author',
+          username: 'origuser',
+          displayName: 'Original Author',
+          bio: '',
+          avatarUrl: '',
+          followersCount: 0,
+          followingCount: 0,
+        },
+      },
+    };
+    renderCard(repost);
+    const likeBtn = screen.getByLabelText('Like');
+    await userEvent.click(likeBtn);
+    expect(mockToggleLike).toHaveBeenCalledWith('original-1');
+  });
 });

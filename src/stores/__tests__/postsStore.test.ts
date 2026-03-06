@@ -198,6 +198,93 @@ describe('postsStore', () => {
       expect(post.isLiked).toBe(false);
       expect(post.likesCount).toBe(5);
     });
+
+    it('updates nested originalPost when liking via repost', async () => {
+      usePostsStore.setState({
+        posts: [{
+          id: 'repost-1',
+          author: { id: 'a2', username: 'reposter', displayName: 'Reposter', bio: '', avatarUrl: '', followersCount: 0, followingCount: 0 },
+          content: '',
+          tags: [],
+          likesCount: 0,
+          commentsCount: 0,
+          isLiked: false,
+          isBookmarked: false,
+          postType: 'repost',
+          originalPost: {
+            id: 'orig-1',
+            author: { id: 'a1', username: 'u', displayName: 'U', bio: '', avatarUrl: '', followersCount: 0, followingCount: 0 },
+            content: 'Original post',
+            tags: [],
+            likesCount: 3,
+            commentsCount: 0,
+            isLiked: false,
+            isBookmarked: false,
+            postType: 'original',
+            originalPost: null,
+            repostCount: 1,
+            isReposted: false,
+            createdAt: '2024-01-01T00:00:00Z',
+          },
+          repostCount: 0,
+          isReposted: false,
+          createdAt: '2024-01-02T00:00:00Z',
+        }],
+      });
+
+      vi.mocked(mockLikesAPI.likePost).mockResolvedValue({ success: true });
+
+      const promise = usePostsStore.getState().toggleLike('orig-1');
+
+      // Optimistic update should apply to nested originalPost
+      const repost = usePostsStore.getState().posts[0];
+      expect(repost.originalPost?.isLiked).toBe(true);
+      expect(repost.originalPost?.likesCount).toBe(4);
+
+      await promise;
+    });
+
+    it('reverts nested originalPost on API error', async () => {
+      usePostsStore.setState({
+        posts: [{
+          id: 'repost-1',
+          author: { id: 'a2', username: 'reposter', displayName: 'Reposter', bio: '', avatarUrl: '', followersCount: 0, followingCount: 0 },
+          content: '',
+          tags: [],
+          likesCount: 0,
+          commentsCount: 0,
+          isLiked: false,
+          isBookmarked: false,
+          postType: 'repost',
+          originalPost: {
+            id: 'orig-1',
+            author: { id: 'a1', username: 'u', displayName: 'U', bio: '', avatarUrl: '', followersCount: 0, followingCount: 0 },
+            content: 'Original post',
+            tags: [],
+            likesCount: 3,
+            commentsCount: 0,
+            isLiked: false,
+            isBookmarked: false,
+            postType: 'original',
+            originalPost: null,
+            repostCount: 1,
+            isReposted: false,
+            createdAt: '2024-01-01T00:00:00Z',
+          },
+          repostCount: 0,
+          isReposted: false,
+          createdAt: '2024-01-02T00:00:00Z',
+        }],
+      });
+
+      vi.mocked(mockLikesAPI.likePost).mockRejectedValue(new Error('fail'));
+
+      await usePostsStore.getState().toggleLike('orig-1');
+
+      const repost = usePostsStore.getState().posts[0];
+      expect(repost.originalPost?.isLiked).toBe(false);
+      expect(repost.originalPost?.likesCount).toBe(3);
+    });
   });
 
   describe('deletePost', () => {

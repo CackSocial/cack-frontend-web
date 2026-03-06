@@ -98,31 +98,49 @@ export const usePostsStore = create<PostsState>((set, get) => ({
   },
 
   toggleLike: async (postId: string) => {
-    const post = get().posts.find((p) => p.id === postId);
+    // Find the post — either top-level or nested inside a repost/quote
+    let post = get().posts.find((p) => p.id === postId);
+    if (!post) {
+      const wrapper = get().posts.find((p) => p.originalPost?.id === postId);
+      if (wrapper?.originalPost) {
+        post = wrapper.originalPost;
+      }
+    }
     if (!post) return;
+
+    const wasLiked = post.isLiked;
+    const oldCount = post.likesCount;
+
+    // Helper: update all occurrences (top-level and nested) of this postId
+    const applyLikeState = (liked: boolean, count: number) => {
+      set((state) => ({
+        posts: state.posts.map((p) => {
+          if (p.id === postId) {
+            return { ...p, isLiked: liked, likesCount: count };
+          }
+          if (p.originalPost?.id === postId) {
+            return {
+              ...p,
+              originalPost: { ...p.originalPost, isLiked: liked, likesCount: count },
+            };
+          }
+          return p;
+        }),
+      }));
+    };
+
     // Optimistic update
-    set((state) => ({
-      posts: state.posts.map((p) =>
-        p.id === postId
-          ? { ...p, isLiked: !p.isLiked, likesCount: p.isLiked ? p.likesCount - 1 : p.likesCount + 1 }
-          : p,
-      ),
-    }));
+    applyLikeState(!wasLiked, wasLiked ? oldCount - 1 : oldCount + 1);
+
     try {
-      if (post.isLiked) {
+      if (wasLiked) {
         await likesAPI.unlikePost(postId);
       } else {
         await likesAPI.likePost(postId);
       }
     } catch {
       // Revert on error
-      set((state) => ({
-        posts: state.posts.map((p) =>
-          p.id === postId
-            ? { ...p, isLiked: post.isLiked, likesCount: post.likesCount }
-            : p,
-        ),
-      }));
+      applyLikeState(wasLiked, oldCount);
       useToastStore.getState().addToast('Failed to update like', 'error');
     }
   },
@@ -175,6 +193,12 @@ export const usePostsStore = create<PostsState>((set, get) => ({
     try {
       if (post.isReposted) {
         await repostsAPI.unrepost(postId);
+        // Remove the repost-type post entry from state so the card disappears immediately
+        set((state) => ({
+          posts: state.posts.filter(
+            (p) => !(p.postType === 'repost' && p.originalPost?.id === postId),
+          ),
+        }));
       } else {
         await repostsAPI.repost(postId);
       }
