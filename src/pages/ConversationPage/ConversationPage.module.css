@@ -3,6 +3,8 @@
   flex-direction: column;
   height: calc(100vh - var(--space-12));
   max-height: calc(100vh - var(--space-12));
+  height: calc(100dvh - var(--space-12));
+  max-height: calc(100dvh - var(--space-12));
   overflow: hidden;
 }
 
@@ -149,9 +151,10 @@
     top: 0;
     left: 0;
     right: 0;
-    bottom: var(--header-height);
-    height: auto;
-    max-height: none;
+    height: calc(100vh - var(--header-height));
+    max-height: calc(100vh - var(--header-height));
+    height: calc(100dvh - var(--header-height));
+    max-height: calc(100dvh - var(--header-height));
     padding: var(--space-4);
     background-color: var(--color-bg-primary);
     z-index: calc(var(--z-sticky) - 1);
