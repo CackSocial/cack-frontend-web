@@ -35,6 +35,14 @@ The React front-end for **Cack Social**, a lightweight social networking platfor
 
 ---
 
+## Screenshots
+
+<img src="screenshots/HomePage.png" alt="Home Page" width="49.2%"> <img src="screenshots/HomePageLight.png" alt="alt text" width="49.2%">
+<img src="screenshots/ExplorePage.png" alt="alt text" width="49.2%"> <img src="screenshots/DirectMessaging.png" alt="alt text" width="49.2%">
+<img src="screenshots/Comments.png" alt="alt text" width="49.2%"> <img src="screenshots/SettingsPage.png" alt="alt text" width="49.2%">
+
+---
+
 ## Tech Stack
 
 | Category | Technology |
@@ -57,7 +65,7 @@ The React front-end for **Cack Social**, a lightweight social networking platfor
 
 - **Node.js** 20 or higher
 - **npm** 10+ (ships with Node 20)
-- **Cack Backend** running on `http://localhost:8080` (see [cack-backend](../cack-backend/))
+- **Cack Backend** running on `http://localhost:8080` (see [cack-backend](https://github.com/CackSocial/cack-backend))
 
 ---
 
